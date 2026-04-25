@@ -1,17 +1,18 @@
-
-// 部署完成后在网址后面加上这个，获取自建节点和机场聚合节点，/?token=auto或/auto或
+// ============================================================================
+// BTYCloud | RunSing Innovation Private Sub-Aggregator
+// ============================================================================
 
 let mytoken = 'auto';
-let guestToken = ''; //可以随便取，或者uuid生成，https://1024tools.com/uuid
-let BotToken = ''; //可以为空，或者@BotFather中输入/start，/newbot，并关注机器人
-let ChatID = ''; //可以为空，或者@userinfobot中获取，/start
-let TG = 0; //小白勿动， 开发者专用，1 为推送所有的访问信息，0 为不推送订阅转换后端的访问信息与异常访问
-let FileName = 'CF-Workers-SUB';
-let SUBUpdateTime = 6; //自定义订阅更新时间，单位小时
-let total = 99;//TB
-let timestamp = 4102329600000;//2099-12-31
+let guestToken = ''; 
+let BotToken = ''; 
+let ChatID = ''; 
+let TG = 0; 
+let FileName = 'BTYCloud-Sync'; // 品牌名稱替換
+let SUBUpdateTime = 6; 
+let total = 99;
+let timestamp = 4102329600000;
 
-//节点链接 + 订阅链接
+// 預設訂閱連結 (MainData)
 let MainData = `
 https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray
 https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list_raw.txt
@@ -23,8 +24,8 @@ https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub
 `
 
 let urls = [];
-let subConverter = "SUBAPI.fxxk.dedyn.io"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
-let subConfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
+let subConverter = "SUBAPI.fxxk.dedyn.io"; // 訂閱轉換後端
+let subConfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini";
 let subProtocol = 'https';
 
 export default {
@@ -38,6 +39,7 @@ export default {
 		ChatID = env.TGID || ChatID;
 		TG = env.TG || TG;
 		subConverter = env.SUBAPI || subConverter;
+		
 		if (subConverter.includes("http://")) {
 			subConverter = subConverter.split("//")[1];
 			subProtocol = 'http';
@@ -54,22 +56,20 @@ export default {
 		guestToken = env.GUESTTOKEN || env.GUEST || guestToken;
 		if (!guestToken) guestToken = await MD5MD5(mytoken);
 		const 访客订阅 = guestToken;
-		//console.log(`${fakeUserID}\n${fakeHostName}`); // 打印fakeID
 
 		let UD = Math.floor(((timestamp - Date.now()) / timestamp * total * 1099511627776) / 2);
 		total = total * 1099511627776;
 		let expire = Math.floor(timestamp / 1000);
 		SUBUpdateTime = env.SUBUPTIME || SUBUpdateTime;
 
+		// 權限校驗
 		if (!([mytoken, fakeToken, 访客订阅].includes(token) || url.pathname == ("/" + mytoken) || url.pathname.includes("/" + mytoken + "?"))) {
 			if (TG == 1 && url.pathname !== "/" && url.pathname !== "/favicon.ico") await sendMessage(`#异常访问 ${FileName}`, request.headers.get('CF-Connecting-IP'), `UA: ${userAgent}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
 			if (env.URL302) return Response.redirect(env.URL302, 302);
 			else if (env.URL) return await proxyURL(env.URL, url);
 			else return new Response(await nginx(), {
 				status: 200,
-				headers: {
-					'Content-Type': 'text/html; charset=UTF-8',
-				},
+				headers: { 'Content-Type': 'text/html; charset=UTF-8' },
 			});
 		} else {
 			if (env.KV) {
@@ -84,6 +84,7 @@ export default {
 				MainData = env.LINK || MainData;
 				if (env.LINKSUB) urls = await ADD(env.LINKSUB);
 			}
+			
 			let 重新汇总所有链接 = await ADD(MainData + '\n' + urls.join('\n'));
 			let 自建节点 = "";
 			let 订阅链接 = "";
@@ -115,7 +116,6 @@ export default {
 
 			let subConverterUrl;
 			let 订阅转换URL = `${url.origin}/${await MD5MD5(fakeToken)}?token=${fakeToken}`;
-			//console.log(订阅转换URL);
 			let req_data = MainData;
 
 			let 追加UA = 'v2rayn';
@@ -126,22 +126,18 @@ export default {
 			else if (url.searchParams.has('loon')) 追加UA = 'Loon';
 
 			const 请求订阅响应内容 = await getSUB(urls, request, 追加UA, userAgentHeader);
-			console.log(请求订阅响应内容);
 			req_data += 请求订阅响应内容[0].join('\n');
 			订阅转换URL += "|" + 请求订阅响应内容[1];
 
 			if (env.WARP) 订阅转换URL += "|" + (await ADD(env.WARP)).join("|");
-			//修复中文错误
+			
 			const utf8Encoder = new TextEncoder();
 			const encodedData = utf8Encoder.encode(req_data);
-			//const text = String.fromCharCode.apply(null, encodedData);
 			const utf8Decoder = new TextDecoder();
 			const text = utf8Decoder.decode(encodedData);
 
-			//去重
 			const uniqueLines = new Set(text.split('\n'));
 			const result = [...uniqueLines].join('\n');
-			//console.log(result);
 
 			let base64Data;
 			try {
@@ -151,22 +147,18 @@ export default {
 					const binary = new TextEncoder().encode(data);
 					let base64 = '';
 					const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
 					for (let i = 0; i < binary.length; i += 3) {
 						const byte1 = binary[i];
 						const byte2 = binary[i + 1] || 0;
 						const byte3 = binary[i + 2] || 0;
-
 						base64 += chars[byte1 >> 2];
 						base64 += chars[((byte1 & 3) << 4) | (byte2 >> 4)];
 						base64 += chars[((byte2 & 15) << 2) | (byte3 >> 6)];
 						base64 += chars[byte3 & 63];
 					}
-
 					const padding = 3 - (binary.length % 3 || 3);
 					return base64.slice(0, base64.length - padding) + '=='.slice(0, padding);
 				}
-
 				base64Data = encodeBase64(result);
 			}
 
@@ -175,7 +167,6 @@ export default {
 					headers: {
 						"content-type": "text/plain; charset=utf-8",
 						"Profile-Update-Interval": `${SUBUpdateTime}`,
-						//"Subscription-Userinfo": `upload=${UD}; download=${UD}; total=${total}; expire=${expire}`,
 					}
 				});
 			} else if (订阅格式 == 'clash') {
@@ -189,19 +180,16 @@ export default {
 			} else if (订阅格式 == 'loon') {
 				subConverterUrl = `${subProtocol}://${subConverter}/sub?target=loon&url=${encodeURIComponent(订阅转换URL)}&insert=false&config=${encodeURIComponent(subConfig)}&emoji=true&list=false&tfo=false&scv=true&fdn=false&sort=false`;
 			}
-			//console.log(订阅转换URL);
+			
 			try {
 				const subConverterResponse = await fetch(subConverterUrl);
-
 				if (!subConverterResponse.ok) {
 					return new Response(base64Data, {
 						headers: {
 							"content-type": "text/plain; charset=utf-8",
 							"Profile-Update-Interval": `${SUBUpdateTime}`,
-							//"Subscription-Userinfo": `upload=${UD}; download=${UD}; total=${total}; expire=${expire}`,
 						}
 					});
-					//throw new Error(`Error fetching subConverterUrl: ${subConverterResponse.status} ${subConverterResponse.statusText}`);
 				}
 				let subConverterContent = await subConverterResponse.text();
 				if (订阅格式 == 'clash') subConverterContent = await clashFix(subConverterContent);
@@ -210,8 +198,6 @@ export default {
 						"Content-Disposition": `attachment; filename*=utf-8''${encodeURIComponent(FileName)}`,
 						"content-type": "text/plain; charset=utf-8",
 						"Profile-Update-Interval": `${SUBUpdateTime}`,
-						//"Subscription-Userinfo": `upload=${UD}; download=${UD}; total=${total}; expire=${expire}`,
-
 					},
 				});
 			} catch (error) {
@@ -219,7 +205,6 @@ export default {
 					headers: {
 						"content-type": "text/plain; charset=utf-8",
 						"Profile-Update-Interval": `${SUBUpdateTime}`,
-						//"Subscription-Userinfo": `upload=${UD}; download=${UD}; total=${total}; expire=${expire}`,
 					}
 				});
 			}
@@ -228,15 +213,14 @@ export default {
 };
 
 async function ADD(envadd) {
-	var addtext = envadd.replace(/[	"'|\r\n]+/g, ',').replace(/,+/g, ',');	// 将空格、双引号、单引号和换行符替换为逗号
-	//console.log(addtext);
+	var addtext = envadd.replace(/[	"'|\r\n]+/g, ',').replace(/,+/g, ',');
 	if (addtext.charAt(0) == ',') addtext = addtext.slice(1);
 	if (addtext.charAt(addtext.length - 1) == ',') addtext = addtext.slice(0, addtext.length - 1);
 	const add = addtext.split(',');
-	//console.log(add);
 	return add;
 }
 
+// 假偽裝頁面
 async function nginx() {
 	const text = `
 	<!DOCTYPE html>
@@ -244,23 +228,14 @@ async function nginx() {
 	<head>
 	<title>Welcome to nginx!</title>
 	<style>
-		body {
-			width: 35em;
-			margin: 0 auto;
-			font-family: Tahoma, Verdana, Arial, sans-serif;
-		}
+		body { width: 35em; margin: 0 auto; font-family: Tahoma, Verdana, Arial, sans-serif; }
 	</style>
 	</head>
 	<body>
 	<h1>Welcome to nginx!</h1>
-	<p>If you see this page, the nginx web server is successfully installed and
-	working. Further configuration is required.</p>
-	
-	<p>For online documentation and support please refer to
-	<a href="http://nginx.org/">nginx.org</a>.<br/>
-	Commercial support is available at
-	<a href="http://nginx.com/">nginx.com</a>.</p>
-	
+	<p>If you see this page, the nginx web server is successfully installed and working. Further configuration is required.</p>
+	<p>For online documentation and support please refer to <a href="http://nginx.org/">nginx.org</a>.<br/>
+	Commercial support is available at <a href="http://nginx.com/">nginx.com</a>.</p>
 	<p><em>Thank you for using nginx.</em></p>
 	</body>
 	</html>
@@ -278,16 +253,8 @@ async function sendMessage(type, ip, add_data = "") {
 		} else {
 			msg = `${type}\nIP: ${ip}\n<tg-spoiler>${add_data}`;
 		}
-
 		let url = "https://api.telegram.org/bot" + BotToken + "/sendMessage?chat_id=" + ChatID + "&parse_mode=HTML&text=" + encodeURIComponent(msg);
-		return fetch(url, {
-			method: 'get',
-			headers: {
-				'Accept': 'text/html,application/xhtml+xml,application/xml;',
-				'Accept-Encoding': 'gzip, deflate, br',
-				'User-Agent': 'Mozilla/5.0 Chrome/90.0.4430.72'
-			}
-		});
+		return fetch(url, { method: 'get', headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;', 'Accept-Encoding': 'gzip, deflate, br', 'User-Agent': 'Mozilla/5.0 Chrome/90.0.4430.72' } });
 	}
 }
 
@@ -299,27 +266,18 @@ function base64Decode(str) {
 
 async function MD5MD5(text) {
 	const encoder = new TextEncoder();
-
 	const firstPass = await crypto.subtle.digest('MD5', encoder.encode(text));
 	const firstPassArray = Array.from(new Uint8Array(firstPass));
 	const firstHex = firstPassArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
 	const secondPass = await crypto.subtle.digest('MD5', encoder.encode(firstHex.slice(7, 27)));
 	const secondPassArray = Array.from(new Uint8Array(secondPass));
 	const secondHex = secondPassArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
 	return secondHex.toLowerCase();
 }
 
 function clashFix(content) {
 	if (content.includes('wireguard') && !content.includes('remote-dns-resolve')) {
-		let lines;
-		if (content.includes('\r\n')) {
-			lines = content.split('\r\n');
-		} else {
-			lines = content.split('\n');
-		}
-
+		let lines = content.includes('\r\n') ? content.split('\r\n') : content.split('\n');
 		let result = "";
 		for (let line of lines) {
 			if (line.includes('type: wireguard')) {
@@ -330,7 +288,6 @@ function clashFix(content) {
 				result += line + '\n';
 			}
 		}
-
 		content = result;
 	}
 	return content;
@@ -339,146 +296,74 @@ function clashFix(content) {
 async function proxyURL(proxyURL, url) {
 	const URLs = await ADD(proxyURL);
 	const fullURL = URLs[Math.floor(Math.random() * URLs.length)];
-
-	// 解析目标 URL
 	let parsedURL = new URL(fullURL);
-	console.log(parsedURL);
-	// 提取并可能修改 URL 组件
 	let URLProtocol = parsedURL.protocol.slice(0, -1) || 'https';
 	let URLHostname = parsedURL.hostname;
 	let URLPathname = parsedURL.pathname;
 	let URLSearch = parsedURL.search;
-
-	// 处理 pathname
-	if (URLPathname.charAt(URLPathname.length - 1) == '/') {
-		URLPathname = URLPathname.slice(0, -1);
-	}
+	if (URLPathname.charAt(URLPathname.length - 1) == '/') URLPathname = URLPathname.slice(0, -1);
 	URLPathname += url.pathname;
-
-	// 构建新的 URL
 	let newURL = `${URLProtocol}://${URLHostname}${URLPathname}${URLSearch}`;
-
-	// 反向代理请求
 	let response = await fetch(newURL);
-
-	// 创建新的响应
-	let newResponse = new Response(response.body, {
-		status: response.status,
-		statusText: response.statusText,
-		headers: response.headers
-	});
-
-	// 添加自定义头部，包含 URL 信息
-	//newResponse.headers.set('X-Proxied-By', 'Cloudflare Worker');
-	//newResponse.headers.set('X-Original-URL', fullURL);
+	let newResponse = new Response(response.body, { status: response.status, statusText: response.statusText, headers: response.headers });
 	newResponse.headers.set('X-New-URL', newURL);
-
 	return newResponse;
 }
 
 async function getSUB(api, request, 追加UA, userAgentHeader) {
-	if (!api || api.length === 0) {
-		return [];
-	}
+	if (!api || api.length === 0) return [];
 	let newapi = "";
 	let 订阅转换URLs = "";
 	let 异常订阅 = "";
-	const controller = new AbortController(); // 创建一个AbortController实例，用于取消请求
-	const timeout = setTimeout(() => {
-		controller.abort(); // 2秒后取消所有请求
-	}, 2000);
+	const controller = new AbortController(); 
+	const timeout = setTimeout(() => { controller.abort(); }, 2000);
 
 	try {
-		// 使用Promise.allSettled等待所有API请求完成，无论成功或失败
 		const responses = await Promise.allSettled(api.map(apiUrl => getUrl(request, apiUrl, 追加UA, userAgentHeader).then(response => response.ok ? response.text() : Promise.reject(response))));
-
-		// 遍历所有响应
 		const modifiedResponses = responses.map((response, index) => {
-			// 检查是否请求成功
 			if (response.status === 'rejected') {
 				const reason = response.reason;
-				if (reason && reason.name === 'AbortError') {
-					return {
-						status: '超时',
-						value: null,
-						apiUrl: api[index] // 将原始的apiUrl添加到返回对象中
-					};
-				}
-				console.error(`请求失败: ${api[index]}, 错误信息: ${reason.status} ${reason.statusText}`);
-				return {
-					status: '请求失败',
-					value: null,
-					apiUrl: api[index] // 将原始的apiUrl添加到返回对象中
-				};
+				if (reason && reason.name === 'AbortError') return { status: '超时', value: null, apiUrl: api[index] };
+				return { status: '请求失败', value: null, apiUrl: api[index] };
 			}
-			return {
-				status: response.status,
-				value: response.value,
-				apiUrl: api[index] // 将原始的apiUrl添加到返回对象中
-			};
+			return { status: response.status, value: response.value, apiUrl: api[index] };
 		});
 
-		console.log(modifiedResponses); // 输出修改后的响应数组
-
 		for (const response of modifiedResponses) {
-			// 检查响应状态是否为'fulfilled'
 			if (response.status === 'fulfilled') {
-				const content = await response.value || 'null'; // 获取响应的内容
+				const content = await response.value || 'null'; 
 				if (content.includes('proxies') && content.includes('proxy-groups')) {
-					//console.log('Clash订阅: ' + response.apiUrl);
-					订阅转换URLs += "|" + response.apiUrl; // Clash 配置
+					订阅转换URLs += "|" + response.apiUrl; 
 				} else if (content.includes('outbounds') && content.includes('inbounds')) {
-					//console.log('Singbox订阅: ' + response.apiUrl);
-					订阅转换URLs += "|" + response.apiUrl; // Singbox 配置
+					订阅转换URLs += "|" + response.apiUrl; 
 				} else if (content.includes('://')) {
-					//console.log('明文订阅: ' + response.apiUrl);
-					newapi += content + '\n'; // 追加内容
+					newapi += content + '\n'; 
 				} else if (isValidBase64(content)) {
-					//console.log('Base64订阅: ' + response.apiUrl);
-					newapi += base64Decode(content) + '\n'; // 解码并追加内容
+					newapi += base64Decode(content) + '\n'; 
 				} else {
 					const 异常订阅LINK = `trojan://CMLiussss@127.0.0.1:8888?security=tls&allowInsecure=1&type=tcp&headerType=none#%E5%BC%82%E5%B8%B8%E8%AE%A2%E9%98%85%20${response.apiUrl.split('://')[1].split('/')[0]}`;
-					console.log('异常订阅: ' + 异常订阅LINK);
 					异常订阅 += `${异常订阅LINK}\n`;
 				}
 			}
 		}
 	} catch (error) {
-		console.error(error); // 捕获并输出错误信息
+		console.error(error); 
 	} finally {
-		clearTimeout(timeout); // 清除定时器
+		clearTimeout(timeout); 
 	}
 
-	const 订阅内容 = await ADD(newapi + 异常订阅); // 将处理后的内容转换为数组
-	// 返回处理后的结果
+	const 订阅内容 = await ADD(newapi + 异常订阅); 
 	return [订阅内容, 订阅转换URLs];
 }
 
 async function getUrl(request, targetUrl, 追加UA, userAgentHeader) {
-	// 设置自定义 User-Agent
 	const newHeaders = new Headers(request.headers);
 	newHeaders.set("User-Agent", `${atob('djJyYXlOLzYuNDU=')} cmliu/CF-Workers-SUB ${追加UA}(${userAgentHeader})`);
-
-	// 构建新的请求对象
-	const modifiedRequest = new Request(targetUrl, {
-		method: request.method,
-		headers: newHeaders,
-		body: request.method === "GET" ? null : request.body,
-		redirect: "follow"
-	});
-
-	// 输出请求的详细信息
-	console.log(`请求URL: ${targetUrl}`);
-	console.log(`请求头: ${JSON.stringify([...newHeaders])}`);
-	console.log(`请求方法: ${request.method}`);
-	console.log(`请求体: ${request.method === "GET" ? null : request.body}`);
-
-	// 发送请求并返回响应
+	const modifiedRequest = new Request(targetUrl, { method: request.method, headers: newHeaders, body: request.method === "GET" ? null : request.body, redirect: "follow" });
 	return fetch(modifiedRequest);
 }
 
 function isValidBase64(str) {
-	// 先移除所有空白字符(空格、换行、回车等)
 	const cleanStr = str.replace(/\s/g, '');
 	const base64Regex = /^[A-Za-z0-9+/=]+$/;
 	return base64Regex.test(cleanStr);
@@ -487,21 +372,21 @@ function isValidBase64(str) {
 async function 迁移地址列表(env, txt = 'ADD.txt') {
 	const 旧数据 = await env.KV.get(`/${txt}`);
 	const 新数据 = await env.KV.get(txt);
-
 	if (旧数据 && !新数据) {
-		// 写入新位置
 		await env.KV.put(txt, 旧数据);
-		// 删除旧数据
 		await env.KV.delete(`/${txt}`);
 		return true;
 	}
 	return false;
 }
 
+// ============================================================================
+// UI 前端渲染邏輯 (BTYCloud 專屬訂製版)
+// ============================================================================
 async function KV(request, env, txt = 'ADD.txt', guest) {
 	const url = new URL(request.url);
 	try {
-		// POST请求处理
+		// POST 保存邏輯
 		if (request.method === "POST") {
 			if (!env.KV) return new Response("未绑定KV空间", { status: 400 });
 			try {
@@ -509,322 +394,230 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
 				await env.KV.put(txt, content);
 				return new Response("保存成功");
 			} catch (error) {
-				console.error('保存KV时发生错误:', error);
 				return new Response("保存失败: " + error.message, { status: 500 });
 			}
 		}
 
-		// GET请求部分
+		// GET 讀取邏輯
 		let content = '';
 		let hasKV = !!env.KV;
-
 		if (hasKV) {
 			try {
 				content = await env.KV.get(txt) || '';
 			} catch (error) {
-				console.error('读取KV时发生错误:', error);
 				content = '读取数据时发生错误: ' + error.message;
 			}
 		}
 
+		// BTYCloud 私有雲 UI 模板
 		const html = `
-			<!DOCTYPE html>
-			<html>
-				<head>
-					<title>${FileName} 订阅编辑</title>
-					<meta charset="utf-8">
-					<meta name="viewport" content="width=device-width, initial-scale=1">
-					<style>
-						body {
-							margin: 0;
-							padding: 15px; /* 调整padding */
-							box-sizing: border-box;
-							font-size: 13px; /* 设置全局字体大小 */
-						}
-						.editor-container {
-							width: 100%;
-							max-width: 100%;
-							margin: 0 auto;
-						}
-						.editor {
-							width: 100%;
-							height: 300px; /* 调整高度 */
-							margin: 15px 0; /* 调整margin */
-							padding: 10px; /* 调整padding */
-							box-sizing: border-box;
-							border: 1px solid #ccc;
-							border-radius: 4px;
-							font-size: 13px;
-							line-height: 1.5;
-							overflow-y: auto;
-							resize: none;
-						}
-						.save-container {
-							margin-top: 8px; /* 调整margin */
-							display: flex;
-							align-items: center;
-							gap: 10px; /* 调整gap */
-						}
-						.save-btn, .back-btn {
-							padding: 6px 15px; /* 调整padding */
-							color: white;
-							border: none;
-							border-radius: 4px;
-							cursor: pointer;
-						}
-						.save-btn {
-							background: #4CAF50;
-						}
-						.save-btn:hover {
-							background: #45a049;
-						}
-						.back-btn {
-							background: #666;
-						}
-						.back-btn:hover {
-							background: #555;
-						}
-						.save-status {
-							color: #666;
-						}
-					</style>
-					<script src="https://cdn.jsdelivr.net/npm/@keeex/qrcodejs-kx@1.0.2/qrcode.min.js"></script>
-				</head>
-				<body>
-					################################################################<br>
-					Subscribe / sub 订阅地址, 点击链接自动 <strong>复制订阅链接</strong> 并 <strong>生成订阅二维码</strong> <br>
-					---------------------------------------------------------------<br>
-					自适应订阅地址:<br>
-					<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/${mytoken}?b64','qrcode_0')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/${mytoken}</a><br>
-					<div id="qrcode_0" style="margin: 10px 10px 10px 10px;"></div>
-					Base64订阅地址:<br>
-					<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/${mytoken}?b64','qrcode_1')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/${mytoken}?b64</a><br>
-					<div id="qrcode_1" style="margin: 10px 10px 10px 10px;"></div>
-					clash订阅地址:<br>
-					<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/${mytoken}?clash','qrcode_2')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/${mytoken}?clash</a><br>
-					<div id="qrcode_2" style="margin: 10px 10px 10px 10px;"></div>
-					singbox订阅地址:<br>
-					<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/${mytoken}?sb','qrcode_3')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/${mytoken}?sb</a><br>
-					<div id="qrcode_3" style="margin: 10px 10px 10px 10px;"></div>
-					surge订阅地址:<br>
-					<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/${mytoken}?surge','qrcode_4')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/${mytoken}?surge</a><br>
-					<div id="qrcode_4" style="margin: 10px 10px 10px 10px;"></div>
-					loon订阅地址:<br>
-					<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/${mytoken}?loon','qrcode_5')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/${mytoken}?loon</a><br>
-					<div id="qrcode_5" style="margin: 10px 10px 10px 10px;"></div>
-					&nbsp;&nbsp;<strong><a href="javascript:void(0);" id="noticeToggle" onclick="toggleNotice()">查看访客订阅∨</a></strong><br>
-					<div id="noticeContent" class="notice-content" style="display: none;">
-						---------------------------------------------------------------<br>
-						访客订阅只能使用订阅功能，无法查看配置页！<br>
-						GUEST（访客订阅TOKEN）: <strong>${guest}</strong><br>
-						---------------------------------------------------------------<br>
-						自适应订阅地址:<br>
-						<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/sub?token=${guest}','guest_0')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/sub?token=${guest}</a><br>
-						<div id="guest_0" style="margin: 10px 10px 10px 10px;"></div>
-						Base64订阅地址:<br>
-						<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/sub?token=${guest}&b64','guest_1')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/sub?token=${guest}&b64</a><br>
-						<div id="guest_1" style="margin: 10px 10px 10px 10px;"></div>
-						clash订阅地址:<br>
-						<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/sub?token=${guest}&clash','guest_2')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/sub?token=${guest}&clash</a><br>
-						<div id="guest_2" style="margin: 10px 10px 10px 10px;"></div>
-						singbox订阅地址:<br>
-						<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/sub?token=${guest}&sb','guest_3')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/sub?token=${guest}&sb</a><br>
-						<div id="guest_3" style="margin: 10px 10px 10px 10px;"></div>
-						surge订阅地址:<br>
-						<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/sub?token=${guest}&surge','guest_4')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/sub?token=${guest}&surge</a><br>
-						<div id="guest_4" style="margin: 10px 10px 10px 10px;"></div>
-						loon订阅地址:<br>
-						<a href="javascript:void(0)" onclick="copyToClipboard('https://${url.hostname}/sub?token=${guest}&loon','guest_5')" style="color:blue;text-decoration:underline;cursor:pointer;">https://${url.hostname}/sub?token=${guest}&loon</a><br>
-						<div id="guest_5" style="margin: 10px 10px 10px 10px;"></div>
-					</div>
-					---------------------------------------------------------------<br>
-					################################################################<br>
-					订阅转换配置<br>
-					---------------------------------------------------------------<br>
-					SUBAPI（订阅转换后端）: <strong>${subProtocol}://${subConverter}</strong><br>
-					SUBCONFIG（订阅转换配置文件）: <strong>${subConfig}</strong><br>
-					---------------------------------------------------------------<br>
-					################################################################<br>
-					${FileName} 汇聚订阅编辑: 
-					<div class="editor-container">
-						${hasKV ? `
-						<textarea class="editor" 
-							placeholder="${decodeURIComponent(atob('TElOSyVFNyVBNCVCQSVFNCVCRSU4QiVFRiVCQyU4OCVFNCVCOCU4MCVFOCVBMSU4QyVFNCVCOCU4MCVFNCVCOCVBQSVFOCU4QSU4MiVFNyU4MiVCOSVFOSU5MyVCRSVFNiU4RSVBNSVFNSU4RCVCMyVFNSU4RiVBRiVFRiVCQyU4OSVFRiVCQyU5QQp2bGVzcyUzQSUyRiUyRjI0NmFhNzk1LTA2MzctNGY0Yy04ZjY0LTJjOGZiMjRjMWJhZCU0MDEyNy4wLjAuMSUzQTEyMzQlM0ZlbmNyeXB0aW9uJTNEbm9uZSUyNnNlY3VyaXR5JTNEdGxzJTI2c25pJTNEVEcuQ01MaXVzc3NzLmxvc2V5b3VyaXAuY29tJTI2YWxsb3dJbnNlY3VyZSUzRDElMjZ0eXBlJTNEd3MlMjZob3N0JTNEVEcuQ01MaXVzc3NzLmxvc2V5b3VyaXAuY29tJTI2cGF0aCUzRCUyNTJGJTI1M0ZlZCUyNTNEMjU2MCUyM0NGbmF0CnRyb2phbiUzQSUyRiUyRmFhNmRkZDJmLWQxY2YtNGE1Mi1iYTFiLTI2NDBjNDFhNzg1NiU0MDIxOC4xOTAuMjMwLjIwNyUzQTQxMjg4JTNGc2VjdXJpdHklM0R0bHMlMjZzbmklM0RoazEyLmJpbGliaWxpLmNvbSUyNmFsbG93SW5zZWN1cmUlM0QxJTI2dHlwZSUzRHRjcCUyNmhlYWRlclR5cGUlM0Rub25lJTIzSEsKc3MlM0ElMkYlMkZZMmhoWTJoaE1qQXRhV1YwWmkxd2IyeDVNVE13TlRveVJYUlFjVzQyU0ZscVZVNWpTRzlvVEdaVmNFWlJkMjVtYWtORFVUVnRhREZ0U21SRlRVTkNkV04xVjFvNVVERjFaR3RTUzBodVZuaDFielUxYXpGTFdIb3lSbTgyYW5KbmRERTRWelkyYjNCMGVURmxOR0p0TVdwNlprTm1RbUklMjUzRCU0MDg0LjE5LjMxLjYzJTNBNTA4NDElMjNERQoKCiVFOCVBRSVBMiVFOSU5OCU4NSVFOSU5MyVCRSVFNiU4RSVBNSVFNyVBNCVCQSVFNCVCRSU4QiVFRiVCQyU4OCVFNCVCOCU4MCVFOCVBMSU4QyVFNCVCOCU4MCVFNiU5RCVBMSVFOCVBRSVBMiVFOSU5OCU4NSVFOSU5MyVCRSVFNiU4RSVBNSVFNSU4RCVCMyVFNSU4RiVBRiVFRiVCQyU4OSVFRiVCQyU5QQpodHRwcyUzQSUyRiUyRnN1Yi54Zi5mcmVlLmhyJTJGYXV0bw=='))}"
-							id="content">${content}</textarea>
-						<div class="save-container">
-							<button class="save-btn" onclick="saveContent(this)">保存</button>
-							<span class="save-status" id="saveStatus"></span>
-						</div>
-						` : '<p>请绑定 <strong>变量名称</strong> 为 <strong>KV</strong> 的KV命名空间</p>'}
-					</div>
-					<br>
-					################################################################<br>
-					${decodeURIComponent(atob('dGVsZWdyYW0lMjAlRTQlQkElQTQlRTYlQjUlODElRTclQkUlQTQlMjAlRTYlOEElODAlRTYlOUMlQUYlRTUlQTQlQTclRTQlQkQlQUMlN0UlRTUlOUMlQTglRTclQkElQkYlRTUlOEYlOTElRTclODklOEMhJTNDYnIlM0UKJTNDYSUyMGhyZWYlM0QlMjdodHRwcyUzQSUyRiUyRnQubWUlMkZDTUxpdXNzc3MlMjclM0VodHRwcyUzQSUyRiUyRnQubWUlMkZDTUxpdXNzc3MlM0MlMkZhJTNFJTNDYnIlM0UKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tJTNDYnIlM0UKZ2l0aHViJTIwJUU5JUExJUI5JUU3JTlCJUFFJUU1JTlDJUIwJUU1JTlEJTgwJTIwU3RhciFTdGFyIVN0YXIhISElM0NiciUzRQolM0NhJTIwaHJlZiUzRCUyN2h0dHBzJTNBJTJGJTJGZ2l0aHViLmNvbSUyRmNtbGl1JTJGQ0YtV29ya2Vycy1TVUIlMjclM0VodHRwcyUzQSUyRiUyRmdpdGh1Yi5jb20lMkZjbWxpdSUyRkNGLVdvcmtlcnMtU1VCJTNDJTJGYSUzRSUzQ2JyJTNFCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLSUzQ2JyJTNFCiUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMyUyMw=='))}
-					<br><br>UA: <strong>${request.headers.get('User-Agent')}</strong>
-					<script>
-					function copyToClipboard(text, qrcode) {
-						navigator.clipboard.writeText(text).then(() => {
-							alert('已复制到剪贴板');
-						}).catch(err => {
-							console.error('复制失败:', err);
-						});
-						const qrcodeDiv = document.getElementById(qrcode);
-						qrcodeDiv.innerHTML = '';
-						new QRCode(qrcodeDiv, {
-							text: text,
-							width: 220, // 调整宽度
-							height: 220, // 调整高度
-							colorDark: "#000000", // 二维码颜色
-							colorLight: "#ffffff", // 背景颜色
-							correctLevel: QRCode.CorrectLevel.Q, // 设置纠错级别
-							scale: 1 // 调整像素颗粒度
-						});
-					}
-						
-					if (document.querySelector('.editor')) {
-						let timer;
-						const textarea = document.getElementById('content');
-						const originalContent = textarea.value;
-		
-						function goBack() {
-							const currentUrl = window.location.href;
-							const parentUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/'));
-							window.location.href = parentUrl;
-						}
-		
-						function replaceFullwidthColon() {
-							const text = textarea.value;
-							textarea.value = text.replace(/：/g, ':');
-						}
-						
-						function saveContent(button) {
-							try {
-								const updateButtonText = (step) => {
-									button.textContent = \`保存中: \${step}\`;
-								};
-								// 检测是否为iOS设备
-								const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-								
-								// 仅在非iOS设备上执行replaceFullwidthColon
-								if (!isIOS) {
-									replaceFullwidthColon();
-								}
-								updateButtonText('开始保存');
-								button.disabled = true;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>BTYCloud | Sync Control Panel</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow"> <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@keeex/qrcodejs-kx@1.0.2/qrcode.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .glass { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .btn-hover { transition: all 0.2s ease; }
+        .btn-hover:active { transform: scale(0.97); }
+    </style>
+</head>
+<body class="bg-[#0b1120] text-slate-300 min-h-screen p-4 md:p-8 font-sans antialiased selection:bg-blue-500/30 selection:text-blue-200">
+    <div class="max-w-6xl mx-auto glass rounded-2xl shadow-2xl overflow-hidden shadow-blue-900/10">
+        
+        <div class="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/40">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">BTYCloud <span class="font-light text-blue-400">Sync</span></h1>
+                    <p class="text-[10px] text-slate-500 font-mono tracking-wider uppercase mt-0.5">RunSing Innovation Private Infra</p>
+                </div>
+            </div>
+            <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700/50">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-xs text-slate-400 font-medium">系統運行中</span>
+            </div>
+        </div>
 
-								// 获取textarea内容和原始内容
-								const textarea = document.getElementById('content');
-								if (!textarea) {
-									throw new Error('找不到文本编辑区域');
-								}
+        <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <div class="lg:col-span-5 space-y-6">
+                <div>
+                    <h2 class="text-base font-semibold text-white mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        訂閱分發終端
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:border-blue-500/40 transition-colors group">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-slate-300">自適應訂閱 (Auto)</span>
+                                <span class="text-[10px] px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">推薦 v2rayN</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <code class="flex-1 block truncate bg-[#0b1120] px-3 py-2.5 rounded-lg font-mono text-xs text-blue-300 border border-slate-800">https://${url.hostname}/${mytoken}</code>
+                                <button onclick="copyToClipboard('https://${url.hostname}/${mytoken}', 'qrcode_0')" class="btn-hover px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg shadow-lg shadow-blue-900/20 flex-shrink-0">複製</button>
+                            </div>
+                            <div id="qrcode_0" class="mt-4 flex justify-center bg-white rounded-lg p-3 hidden transition-all"></div>
+                        </div>
 
-								updateButtonText('获取内容');
-								let newContent;
-								let originalContent;
-								try {
-									newContent = textarea.value || '';
-									originalContent = textarea.defaultValue || '';
-								} catch (e) {
-									console.error('获取内容错误:', e);
-									throw new Error('无法获取编辑内容');
-								}
+                        <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:border-indigo-500/40 transition-colors group">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-slate-300">Clash 專屬</span>
+                                <span class="text-[10px] px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded border border-indigo-500/20">Meta/Premium</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <code class="flex-1 block truncate bg-[#0b1120] px-3 py-2.5 rounded-lg font-mono text-xs text-indigo-300 border border-slate-800">https://${url.hostname}/${mytoken}?clash</code>
+                                <button onclick="copyToClipboard('https://${url.hostname}/${mytoken}?clash', 'qrcode_clash')" class="btn-hover px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg flex-shrink-0">複製</button>
+                            </div>
+                            <div id="qrcode_clash" class="mt-4 flex justify-center bg-white rounded-lg p-3 hidden transition-all"></div>
+                        </div>
 
-								updateButtonText('准备状态更新函数');
-								const updateStatus = (message, isError = false) => {
-									const statusElem = document.getElementById('saveStatus');
-									if (statusElem) {
-										statusElem.textContent = message;
-										statusElem.style.color = isError ? 'red' : '#666';
-									}
-								};
+                        <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition-colors group">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-slate-300">Sing-box 專屬</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <code class="flex-1 block truncate bg-[#0b1120] px-3 py-2.5 rounded-lg font-mono text-xs text-purple-300 border border-slate-800">https://${url.hostname}/${mytoken}?sb</code>
+                                <button onclick="copyToClipboard('https://${url.hostname}/${mytoken}?sb', 'qrcode_sb')" class="btn-hover px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg flex-shrink-0">複製</button>
+                            </div>
+                            <div id="qrcode_sb" class="mt-4 flex justify-center bg-white rounded-lg p-3 hidden transition-all"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-								updateButtonText('准备按钮重置函数');
-								const resetButton = () => {
-									button.textContent = '保存';
-									button.disabled = false;
-								};
+            <div class="lg:col-span-7 flex flex-col h-[500px] lg:h-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-semibold text-white flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                        數據源管理 (KV Store)
+                    </h2>
+                    <span class="text-[10px] text-slate-500 font-mono">支援 vless/vmess/trojan/ss</span>
+                </div>
+                
+                ${hasKV ? `
+                <div class="flex-1 flex flex-col relative bg-[#0b1120] rounded-xl border border-slate-700 overflow-hidden shadow-inner">
+                    <textarea id="content" class="editor flex-1 w-full bg-transparent p-5 text-emerald-400/90 font-mono text-[13px] leading-relaxed focus:outline-none resize-none" placeholder="在此輸入自建節點連結，每行一個...">${content}</textarea>
+                    
+                    <div class="h-16 bg-slate-800/80 border-t border-slate-700 px-5 flex items-center justify-between backdrop-blur-sm">
+                        <div class="text-xs flex items-center gap-2">
+                            <span id="saveStatus" class="text-slate-400 transition-colors">修改後將自動保存</span>
+                        </div>
+                        <button id="saveBtn" onclick="saveContent(this)" class="btn-hover px-6 py-2 bg-emerald-600/90 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-emerald-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
+                            手動保存
+                        </button>
+                    </div>
+                </div>
+                ` : `
+                <div class="flex-1 flex items-center justify-center border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/20">
+                    <div class="text-center p-8">
+                        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                            <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <h3 class="text-slate-300 font-medium mb-1">未綁定 KV 空間</h3>
+                        <p class="text-slate-500 text-xs max-w-xs mx-auto">請在 Cloudflare Worker 的綁定設置中，添加名為 KV 的命名空間以啟用編輯器。</p>
+                    </div>
+                </div>
+                `}
+            </div>
+        </div>
+        
+        <div class="px-6 py-4 border-t border-slate-700/30 bg-slate-900/50 text-center flex justify-between items-center">
+            <span class="text-[10px] text-slate-500">UA: ${request.headers.get('User-Agent') || 'Unknown'}</span>
+            <span class="text-[10px] text-slate-600 font-mono">BTYCloud Infra v2.0</span>
+        </div>
+    </div>
 
-								if (newContent !== originalContent) {
-									updateButtonText('发送保存请求');
-									fetch(window.location.href, {
-										method: 'POST',
-										body: newContent,
-										headers: {
-											'Content-Type': 'text/plain;charset=UTF-8'
-										},
-										cache: 'no-cache'
-									})
-									.then(response => {
-										updateButtonText('检查响应状态');
-										if (!response.ok) {
-											throw new Error(\`HTTP error! status: \${response.status}\`);
-										}
-										updateButtonText('更新保存状态');
-										const now = new Date().toLocaleString();
-										document.title = \`编辑已保存 \${now}\`;
-										updateStatus(\`已保存 \${now}\`);
-									})
-									.catch(error => {
-										updateButtonText('处理错误');
-										console.error('Save error:', error);
-										updateStatus(\`保存失败: \${error.message}\`, true);
-									})
-									.finally(() => {
-										resetButton();
-									});
-								} else {
-									updateButtonText('检查内容变化');
-									updateStatus('内容未变化');
-									resetButton();
-								}
-							} catch (error) {
-								console.error('保存过程出错:', error);
-								button.textContent = '保存';
-								button.disabled = false;
-								const statusElem = document.getElementById('saveStatus');
-								if (statusElem) {
-									statusElem.textContent = \`错误: \${error.message}\`;
-									statusElem.style.color = 'red';
-								}
-							}
-						}
-		
-						textarea.addEventListener('blur', saveContent);
-						textarea.addEventListener('input', () => {
-							clearTimeout(timer);
-							timer = setTimeout(saveContent, 5000);
-						});
-					}
+    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-600 text-white px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 opacity-0 translate-y-[-20px] pointer-events-none flex items-center gap-3 z-50">
+        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span id="toast-msg" class="text-sm font-medium"></span>
+    </div>
 
-					function toggleNotice() {
-						const noticeContent = document.getElementById('noticeContent');
-						const noticeToggle = document.getElementById('noticeToggle');
-						if (noticeContent.style.display === 'none' || noticeContent.style.display === '') {
-							noticeContent.style.display = 'block';
-							noticeToggle.textContent = '隐藏访客订阅∧';
-						} else {
-							noticeContent.style.display = 'none';
-							noticeToggle.textContent = '查看访客订阅∨';
-						}
-					}
-			
-					// 初始化 noticeContent 的 display 属性
-					document.addEventListener('DOMContentLoaded', () => {
-						document.getElementById('noticeContent').style.display = 'none';
-					});
-					</script>
-				</body>
-			</html>
+    <script>
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toast-msg').textContent = msg;
+        toast.classList.remove('opacity-0', 'translate-y-[-20px]');
+        setTimeout(() => toast.classList.add('opacity-0', 'translate-y-[-20px]'), 2500);
+    }
+
+    function copyToClipboard(text, qrcodeId) {
+        navigator.clipboard.writeText(text).then(() => showToast('連結已複製到剪貼板')).catch(e => console.error('複製失敗', e));
+        
+        const qrcodeDiv = document.getElementById(qrcodeId);
+        if (qrcodeDiv.classList.contains('hidden')) {
+            qrcodeDiv.classList.remove('hidden');
+            qrcodeDiv.innerHTML = '';
+            new QRCode(qrcodeDiv, {
+                text: text, width: 160, height: 160,
+                colorDark: "#0f172a", colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        } else {
+            qrcodeDiv.classList.add('hidden');
+        }
+    }
+        
+    if (document.querySelector('.editor')) {
+        let timer;
+        const textarea = document.getElementById('content');
+        
+        function saveContent(button) {
+            try {
+                const btn = document.getElementById('saveBtn');
+                btn.textContent = '保存中...';
+                btn.classList.add('opacity-70', 'cursor-not-allowed');
+
+                let newContent = textarea.value || '';
+                const statusElem = document.getElementById('saveStatus');
+
+                fetch(window.location.href, {
+                    method: 'POST', body: newContent,
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                    cache: 'no-cache'
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+                    const now = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+                    statusElem.textContent = \`最後同步於 \${now}\`;
+                    statusElem.className = 'text-emerald-400 text-xs font-medium';
+                    showToast('數據已同步至雲端');
+                })
+                .catch(error => {
+                    statusElem.textContent = \`保存失敗: \${error.message}\`;
+                    statusElem.className = 'text-red-400 text-xs font-medium';
+                })
+                .finally(() => {
+                    btn.textContent = '手動保存';
+                    btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        textarea.addEventListener('blur', () => saveContent(document.getElementById('saveBtn')));
+        textarea.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => saveContent(document.getElementById('saveBtn')), 3000);
+        });
+    }
+    </script>
+</body>
+</html>
 		`;
-
-		return new Response(html, {
-			headers: { "Content-Type": "text/html;charset=utf-8" }
-		});
+		return new Response(html, { headers: { "Content-Type": "text/html;charset=utf-8" } });
 	} catch (error) {
-		console.error('处理请求时发生错误:', error);
-		return new Response("服务器错误: " + error.message, {
-			status: 500,
-			headers: { "Content-Type": "text/plain;charset=utf-8" }
-		});
+		return new Response("服务器错误: " + error.message, { status: 500, headers: { "Content-Type": "text/plain;charset=utf-8" } });
 	}
 }
