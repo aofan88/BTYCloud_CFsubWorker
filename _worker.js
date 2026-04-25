@@ -1,10 +1,9 @@
 // ============================================================================
-// BTYCloud | RunSing Innovation Private Sub-Aggregator v3.0 (雙視角 + 密碼鎖)
+// BTYCloud | RunSing Innovation Private Sub-Aggregator v4.0 (Zero-Trust Lock)
 // ============================================================================
 
-let mytoken = 'auto';       // 👨‍💻 管理員默認入口
-let guestToken = 'share';   // 👥 訪客/客戶默認入口 
-let editPassword = '51121'; // 🔒 編輯器鎖定密碼
+let mytoken = 'auto';       // 統一訪問入口 TOKEN
+let editPassword = '51121'; // 🔒 編輯器解鎖密碼 (防窺探 + 防篡改)
 
 let BotToken = ''; 
 let ChatID = ''; 
@@ -30,9 +29,8 @@ export default {
 		const url = new URL(request.url);
 		const token = url.searchParams.get('token');
         
-        // 讀取環境變量，沒有則使用默認值
+        // 讀取環境變量
 		mytoken = env.TOKEN || mytoken;
-        guestToken = env.GUEST || guestToken;
         editPassword = env.EDITPASS || editPassword;
         
 		subConverter = env.SUBAPI || subConverter;
@@ -50,26 +48,21 @@ export default {
 		const timeTemp = Math.ceil(currentDate.getTime() / 1000);
 		const fakeToken = await MD5MD5(`${mytoken}${timeTemp}`);
 
-        // 身分識別核心邏輯
-        const isAdmin = [mytoken, fakeToken].includes(token) || url.pathname === ("/" + mytoken) || url.pathname.startsWith("/" + mytoken + "?");
-        const isGuest = guestToken === token || url.pathname === ("/" + guestToken) || url.pathname.startsWith("/" + guestToken + "?");
-
+        // 身分識別邏輯 (統一為一個入口)
+        const isAuthorized = [mytoken, fakeToken].includes(token) || url.pathname === ("/" + mytoken) || url.pathname.startsWith("/" + mytoken + "?");
 		SUBUpdateTime = env.SUBUPTIME || SUBUpdateTime;
 
-		// 🛡️ 防禦層：不是管理員也不是訪客，直接返回假 Nginx 頁面
-		if (!isAdmin && !isGuest) {
+		// 🛡️ 未授權直接返回假 Nginx 頁面
+		if (!isAuthorized) {
 			if (env.URL302) return Response.redirect(env.URL302, 302);
 			else if (env.URL) return await proxyURL(env.URL, url);
 			else return new Response(await nginx(), { status: 200, headers: { 'Content-Type': 'text/html; charset=UTF-8' } });
 		} else {
-            // 決定當前視角分配的 Token
-            const viewerToken = isAdmin ? mytoken : guestToken;
-
 			if (env.KV) {
 				await 迁移地址列表(env, 'LINK.txt');
-                // 網頁 UI 渲染入口 (只有瀏覽器訪問才會渲染)
+                // 網頁 UI 渲染入口
 				if (userAgent.includes('mozilla') && !url.search) {
-					return await KV(request, env, 'LINK.txt', viewerToken, isAdmin, editPassword);
+					return await KV(request, env, 'LINK.txt', mytoken, editPassword);
 				} else {
 					MainData = await env.KV.get('LINK.txt') || MainData;
 				}
@@ -197,8 +190,6 @@ async function nginx() {
 	return `<!DOCTYPE html><html><head><title>Welcome to nginx!</title><style>body { width: 35em; margin: 0 auto; font-family: Tahoma, Verdana, Arial, sans-serif; }</style></head><body><h1>Welcome to nginx!</h1><p>If you see this page, the nginx web server is successfully installed and working. Further configuration is required.</p><p>For online documentation and support please refer to <a href="http://nginx.org/">nginx.org</a>.<br/>Commercial support is available at <a href="http://nginx.com/">nginx.com</a>.</p><p><em>Thank you for using nginx.</em></p></body></html>`;
 }
 
-async function sendMessage(type, ip, add_data = "") {}
-
 function base64Decode(str) {
 	const bytes = new Uint8Array(atob(str).split('').map(c => c.charCodeAt(0)));
 	return new TextDecoder('utf-8').decode(bytes);
@@ -272,10 +263,6 @@ async function getUrl(request, targetUrl, 追加UA, userAgentHeader) {
 	return fetch(new Request(targetUrl, { method: request.method, headers: newHeaders, body: request.method === "GET" ? null : request.body, redirect: "follow" }));
 }
 
-function isValidBase64(str) {
-	return /^[A-Za-z0-9+/=]+$/.test(str.replace(/\s/g, ''));
-}
-
 async function 迁移地址列表(env, txt = 'ADD.txt') {
 	const 旧数据 = await env.KV.get(`/${txt}`);
 	const 新数据 = await env.KV.get(txt);
@@ -288,39 +275,46 @@ async function 迁移地址列表(env, txt = 'ADD.txt') {
 }
 
 // ============================================================================
-// UI 前端渲染邏輯 (BTYCloud 雙視角分離版)
+// UI 前端渲染與 AJAX API (BTYCloud 零信任架構版)
 // ============================================================================
-async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassword) {
+async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
 	const url = new URL(request.url);
-	try {
-		// 🛡️ POST 保存邏輯 (加入了 51121 密碼校驗)
-		if (request.method === "POST") {
-            if (!isAdmin) return new Response("越權操作", { status: 403 });
-            const providedPass = request.headers.get('x-edit-pass');
-            if (providedPass !== editPassword) return new Response("編輯密碼錯誤，拒絕保存", { status: 401 });
-			if (!env.KV) return new Response("未绑定KV空间", { status: 400 });
-			
+    
+    // 🛡️ API 接口：處理 AJAX 的抓取與保存請求 (嚴格密碼校驗)
+	if (request.method === "POST") {
+        const action = request.headers.get('x-action');
+        const providedPass = request.headers.get('x-edit-pass');
+        
+        if (providedPass !== editPassword) {
+            return new Response("密碼錯誤，拒絕訪問底層數據！", { status: 401 });
+        }
+        if (!env.KV) return new Response("未绑定KV空间", { status: 400 });
+
+        if (action === 'fetch') {
             try {
-				const content = await request.text();
-				await env.KV.put(txt, content);
-				return new Response("保存成功");
-			} catch (error) {
-				return new Response("保存失败: " + error.message, { status: 500 });
-			}
-		}
+                const content = await env.KV.get(txt) || '';
+                return new Response(content, { status: 200 });
+            } catch (error) {
+                return new Response("读取失败", { status: 500 });
+            }
+        } else if (action === 'save') {
+            try {
+                const content = await request.text();
+                await env.KV.put(txt, content);
+                return new Response("保存成功", { status: 200 });
+            } catch (error) {
+                return new Response("保存失败", { status: 500 });
+            }
+        }
+        return new Response("未知的操作", { status: 400 });
+	}
 
-		let content = '';
-		let hasKV = !!env.KV;
-		if (hasKV && isAdmin) {
-			try { content = await env.KV.get(txt) || ''; } 
-            catch (error) { content = '读取数据时发生错误: ' + error.message; }
-		}
-
-		const html = `
+    // 🌐 渲染純淨的 HTML (不包含任何節點數據)
+	const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <title>BTYCloud | ${isAdmin ? 'Admin Console' : 'User Terminal'}</title>
+    <title>BTYCloud | Sync Terminal</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
@@ -334,6 +328,8 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
         .glass { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .btn-hover { transition: all 0.2s ease; }
         .btn-hover:active { transform: scale(0.97); }
+        /* 隱藏代碼框 */
+        #editor-container { display: none; }
     </style>
 </head>
 <body class="bg-[#0b1120] text-slate-300 min-h-screen p-4 md:p-8 font-sans antialiased selection:bg-blue-500/30 selection:text-blue-200">
@@ -341,33 +337,33 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
         
         <div class="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/40">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg ${isAdmin ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} flex items-center justify-center shadow-lg">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold text-white tracking-wide">BTYCloud <span class="font-light ${isAdmin ? 'text-emerald-400' : 'text-blue-400'}">${isAdmin ? 'Admin' : 'Sync'}</span></h1>
-                    <p class="text-[10px] text-slate-500 font-mono tracking-wider uppercase mt-0.5">${isAdmin ? 'Root Privilege Granted' : 'User Access Granted'}</p>
+                    <h1 class="text-xl font-bold text-white tracking-wide">BTYCloud <span class="font-light text-blue-400">Sync</span></h1>
+                    <p class="text-[10px] text-slate-500 font-mono tracking-wider uppercase mt-0.5">Secure Subscription Hub</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 px-3 py-1 bg-slate-800/80 rounded-full border border-slate-700/50">
-                <span class="w-2 h-2 rounded-full ${isAdmin ? 'bg-emerald-500' : 'bg-blue-500'} animate-pulse"></span>
-                <span class="text-xs text-slate-400 font-medium">${isAdmin ? '管理模式' : '訪客模式'}</span>
+                <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                <span class="text-xs text-slate-400 font-medium">系統運行中</span>
             </div>
         </div>
 
         <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            <div class="${isAdmin ? 'lg:col-span-5' : 'lg:col-span-8 lg:col-start-3'} space-y-6">
+            <div class="lg:col-span-5 space-y-6">
                 <div>
                     <h2 class="text-base font-semibold text-white mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 ${isAdmin ? 'text-emerald-400' : 'text-blue-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                        ${isAdmin ? '管理員專屬訂閱' : '您的授權訂閱鏈接'}
+                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        授權訂閱鏈接
                     </h2>
                     
                     <div class="space-y-4">
                         <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 hover:border-blue-500/40 transition-colors">
                             <div class="flex justify-between items-center mb-2">
-                                <span class="text-sm font-medium text-slate-300">通用訂閱 (Auto / V2rayN / Shadowrocket)</span>
+                                <span class="text-sm font-medium text-slate-300">通用訂閱 (Auto / V2rayN)</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <code class="flex-1 block truncate bg-[#0b1120] px-3 py-2.5 rounded-lg font-mono text-xs text-blue-300 border border-slate-800">https://${url.hostname}/${viewerToken}</code>
@@ -401,36 +397,48 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
                 </div>
             </div>
 
-            ${isAdmin ? `
-            <div class="lg:col-span-7 flex flex-col h-[500px] lg:h-auto">
+            <div class="lg:col-span-7 flex flex-col h-[500px] lg:h-auto relative">
+                
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-base font-semibold text-white flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                        底層數據源管理 (僅限管理員)
+                        <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        數據源保險箱 (Data Vault)
                     </h2>
                 </div>
-                
-                ${hasKV ? `
-                <div class="flex-1 flex flex-col relative bg-[#0b1120] rounded-xl border border-slate-700 overflow-hidden shadow-inner">
-                    <textarea id="content" class="editor flex-1 w-full bg-transparent p-5 text-emerald-400/90 font-mono text-[13px] leading-relaxed focus:outline-none resize-none" placeholder="輸入 vless:// 等節點連結...">${content}</textarea>
+
+                <div id="lock-screen" class="flex-1 flex flex-col items-center justify-center border border-slate-700 rounded-xl bg-slate-800/30 z-10">
+                    <div class="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border border-slate-700">
+                        <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <h3 class="text-slate-300 font-medium mb-1">隱私數據已鎖定</h3>
+                    <p class="text-slate-500 text-xs mb-6 text-center">節點數據受端到端保護，請驗證管理員身分</p>
                     
-                    <div class="bg-slate-800/80 border-t border-slate-700 px-4 py-3 flex flex-wrap items-center justify-between backdrop-blur-sm gap-2">
-                        <span id="saveStatus" class="text-slate-400 text-xs transition-colors">請輸入密碼以授權修改</span>
-                        <div class="flex items-center gap-2">
-                            <input type="password" id="editPass" placeholder="編輯授權碼" class="bg-[#0b1120] border border-slate-600 rounded-lg text-slate-300 text-xs px-3 py-2 w-28 focus:border-emerald-500 outline-none transition-colors">
-                            <button id="saveBtn" onclick="saveContent(this)" class="btn-hover px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg shadow-lg focus:outline-none">
-                                驗證並保存
-                            </button>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        <input type="password" id="unlockPass" placeholder="輸入解鎖碼..." class="bg-[#0b1120] border border-slate-600 rounded-lg text-slate-300 text-sm px-4 py-2.5 w-48 focus:border-emerald-500 outline-none text-center tracking-widest shadow-inner">
+                        <button onclick="unlockEditor()" class="btn-hover px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg shadow-lg focus:outline-none">
+                            解鎖
+                        </button>
                     </div>
                 </div>
-                ` : '<div class="text-red-400 flex-1 flex items-center justify-center border border-dashed border-slate-700 rounded-xl bg-slate-800/30">請在 Cloudflare Worker 中綁定 KV 空間</div>'}
+                
+                <div id="editor-container" class="flex-1 flex flex-col relative bg-[#0b1120] rounded-xl border border-emerald-700/50 overflow-hidden shadow-inner shadow-emerald-900/10">
+                    <div class="absolute top-0 right-0 px-3 py-1 bg-emerald-900/50 text-emerald-400 text-[10px] rounded-bl-lg border-b border-l border-emerald-700/50">已授權登入</div>
+                    
+                    <textarea id="content" class="editor flex-1 w-full bg-transparent p-5 pt-8 text-emerald-400/90 font-mono text-[13px] leading-relaxed focus:outline-none resize-none" placeholder="輸入 vless:// 等節點連結..."></textarea>
+                    
+                    <div class="bg-slate-800/90 border-t border-slate-700 px-4 py-3 flex items-center justify-between">
+                        <span id="saveStatus" class="text-slate-400 text-xs">安全編輯模式</span>
+                        <button id="saveBtn" onclick="saveContent(this)" class="btn-hover px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg shadow-lg focus:outline-none">
+                            加密並保存
+                        </button>
+                    </div>
+                </div>
+
             </div>
-            ` : ''}
         </div>
         
         <div class="px-6 py-4 border-t border-slate-700/30 bg-slate-900/50 text-center">
-            <span class="text-[10px] text-slate-600 font-mono">BTYCloud Infra Core | SECURE MODE ON</span>
+            <span class="text-[10px] text-slate-600 font-mono">BTYCloud Zero-Trust Architecture</span>
         </div>
     </div>
 
@@ -439,7 +447,8 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
     </div>
 
     <script>
-    // 通用交互邏輯
+    let validPassword = ""; // 成功解鎖後保存在內存中的密碼
+
     function showToast(msg, isError = false) {
         const toast = document.getElementById('toast');
         toast.className = \`fixed top-6 left-1/2 transform -translate-x-1/2 \${isError ? 'bg-red-900/90 border-red-500' : 'bg-slate-800 border-slate-600'} text-white px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 z-50 flex items-center gap-3\`;
@@ -460,19 +469,45 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
         }
     }
         
-    ${isAdmin ? `
-    // 管理員專屬：密碼校驗與保存邏輯
-    function saveContent(button) {
-        const passInput = document.getElementById('editPass').value;
-        if (!passInput) {
-            showToast('請先輸入編輯授權碼！', true);
-            return;
-        }
+    // 🔓 解鎖並抓取數據
+    function unlockEditor() {
+        const passInput = document.getElementById('unlockPass').value;
+        if (!passInput) return showToast('請輸入解鎖碼', true);
 
+        showToast('正在驗證金鑰...');
+        
+        fetch(window.location.href, {
+            method: 'POST', 
+            headers: { 
+                'x-action': 'fetch',
+                'x-edit-pass': passInput 
+            }
+        })
+        .then(async response => {
+            if (response.status === 401) throw new Error("密碼錯誤，拒絕訪問！");
+            if (!response.ok) throw new Error("網絡異常或未綁定 KV");
+            
+            const rawData = await response.text();
+            
+            // 驗證成功：保存密碼，隱藏鎖定層，顯示編輯器，注入數據
+            validPassword = passInput; 
+            document.getElementById('lock-screen').style.display = 'none';
+            document.getElementById('editor-container').style.display = 'flex';
+            document.getElementById('content').value = rawData;
+            
+            showToast('✅ 驗證成功，數據已解密');
+        })
+        .catch(error => {
+            showToast(error.message, true);
+        });
+    }
+
+    // 💾 保存數據
+    function saveContent(button) {
         const textarea = document.getElementById('content');
         textarea.value = textarea.value.replace(/：/g, ':');
         
-        button.textContent = '驗證中...';
+        button.textContent = '保存中...';
         button.classList.add('opacity-70', 'cursor-not-allowed');
         const statusElem = document.getElementById('saveStatus');
 
@@ -481,17 +516,16 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
             body: textarea.value || '',
             headers: { 
                 'Content-Type': 'text/plain;charset=UTF-8',
-                'x-edit-pass': passInput 
-            },
-            cache: 'no-cache'
+                'x-action': 'save',
+                'x-edit-pass': validPassword // 帶上剛才驗證通過的密碼
+            }
         })
         .then(async response => {
-            if (response.status === 401) throw new Error("授權碼錯誤，拒絕保存！");
+            if (response.status === 401) throw new Error("授權過期，請刷新重試");
             if (!response.ok) throw new Error("網絡異常");
-            statusElem.textContent = \`✅ 授權通過，數據已同步\`;
+            statusElem.textContent = \`✅ 最後同步於 \${new Date().toLocaleTimeString('zh-TW', { hour12: false })}\`;
             statusElem.className = 'text-emerald-400 text-xs font-medium';
-            showToast('數據已同步至 BTYCloud 邊緣節點');
-            document.getElementById('editPass').value = ''; 
+            showToast('數據已加密並保存');
         })
         .catch(error => {
             statusElem.textContent = \`❌ \${error.message}\`;
@@ -499,11 +533,15 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, isAdmin, editPassw
             showToast(error.message, true);
         })
         .finally(() => {
-            button.textContent = '驗證並保存';
+            button.textContent = '加密並保存';
             button.classList.remove('opacity-70', 'cursor-not-allowed');
         });
     }
-    ` : ''}
+
+    // 支援 Enter 鍵解鎖
+    document.getElementById('unlockPass').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') unlockEditor();
+    });
     </script>
 </body>
 </html>
