@@ -1,5 +1,5 @@
 // ============================================================================
-// BTYCloud | RunSing Innovation Private Sub-Aggregator v4.0 (Zero-Trust Lock)
+// BTYCloud | RunSing Innovation Private Sub-Aggregator v4.1 (Zero-Trust Lock)
 // ============================================================================
 
 let mytoken = 'auto';       // 統一訪問入口 TOKEN
@@ -280,37 +280,38 @@ async function 迁移地址列表(env, txt = 'ADD.txt') {
 async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
 	const url = new URL(request.url);
     
-    // 🛡️ API 接口：處理 AJAX 的抓取與保存請求 (嚴格密碼校驗)
-	if (request.method === "POST") {
-        const action = request.headers.get('x-action');
-        const providedPass = request.headers.get('x-edit-pass');
-        
-        if (providedPass !== editPassword) {
-            return new Response("密碼錯誤，拒絕訪問底層數據！", { status: 401 });
-        }
-        if (!env.KV) return new Response("未绑定KV空间", { status: 400 });
-
-        if (action === 'fetch') {
-            try {
-                const content = await env.KV.get(txt) || '';
-                return new Response(content, { status: 200 });
-            } catch (error) {
-                return new Response("读取失败", { status: 500 });
+    try {
+        // 🛡️ API 接口：處理 AJAX 的抓取與保存請求 (嚴格密碼校驗)
+        if (request.method === "POST") {
+            const action = request.headers.get('x-action');
+            const providedPass = request.headers.get('x-edit-pass');
+            
+            if (providedPass !== editPassword) {
+                return new Response("密碼錯誤，拒絕訪問底層數據！", { status: 401 });
             }
-        } else if (action === 'save') {
-            try {
-                const content = await request.text();
-                await env.KV.put(txt, content);
-                return new Response("保存成功", { status: 200 });
-            } catch (error) {
-                return new Response("保存失败", { status: 500 });
-            }
-        }
-        return new Response("未知的操作", { status: 400 });
-	}
+            if (!env.KV) return new Response("未绑定KV空间", { status: 400 });
 
-    // 🌐 渲染純淨的 HTML (不包含任何節點數據)
-	const html = `
+            if (action === 'fetch') {
+                try {
+                    const content = await env.KV.get(txt) || '';
+                    return new Response(content, { status: 200 });
+                } catch (error) {
+                    return new Response("读取失败", { status: 500 });
+                }
+            } else if (action === 'save') {
+                try {
+                    const content = await request.text();
+                    await env.KV.put(txt, content);
+                    return new Response("保存成功", { status: 200 });
+                } catch (error) {
+                    return new Response("保存失败", { status: 500 });
+                }
+            }
+            return new Response("未知的操作", { status: 400 });
+        }
+
+        // 🌐 渲染純淨的 HTML (不包含任何節點數據)
+        const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -547,7 +548,7 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
 </html>
 		`;
 		return new Response(html, { headers: { "Content-Type": "text/html;charset=utf-8" } });
-	} catch (error) {
-		return new Response("服务器错误: " + error.message, { status: 500, headers: { "Content-Type": "text/plain;charset=utf-8" } });
-	}
+    } catch (error) {
+        return new Response("服务器错误: " + error.message, { status: 500, headers: { "Content-Type": "text/plain;charset=utf-8" } });
+    }
 }
