@@ -2,3 +2,8 @@
 name = 'bty-cfsub'
 main = "_worker.js"
 compatibility_date = "2024-05-26"
+
+
+[[kv_namespaces]]
+binding = "KV"
+id = "b1f670bf6c7148b1935e01322a3547a7"
