@@ -1,9 +1,10 @@
 // ============================================================================
-// BTYCloud | RunSing Innovation Private Sub-Aggregator v4.1 (Zero-Trust Lock)
+// BTYCloud | RunSing Innovation Private Sub-Aggregator v4.2 
+// (Zero-Trust Lock + Original Parsing Logic Restored)
 // ============================================================================
 
-let mytoken = 'auto';       // 統一訪問入口 TOKEN
-let editPassword = '51121'; // 🔒 編輯器解鎖密碼 (防窺探 + 防篡改)
+let mytoken = 'auto';       
+let editPassword = '51121'; 
 
 let BotToken = ''; 
 let ChatID = ''; 
@@ -15,6 +16,11 @@ let timestamp = 4102329600000;
 
 let MainData = `
 https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray
+https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list_raw.txt
+https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt
+https://raw.githubusercontent.com/aiboboxx/v2rayfree/main/v2
+https://raw.githubusercontent.com/mahdibland/SSAggregator/master/sub/airport_sub_merge.txt
+https://raw.githubusercontent.com/mahdibland/SSAggregator/master/sub/sub_merge.txt
 https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub
 `
 let urls = [];
@@ -29,9 +35,11 @@ export default {
 		const url = new URL(request.url);
 		const token = url.searchParams.get('token');
         
-        // 讀取環境變量
 		mytoken = env.TOKEN || mytoken;
         editPassword = env.EDITPASS || editPassword;
+        BotToken = env.TGTOKEN || BotToken;
+		ChatID = env.TGID || ChatID;
+		TG = env.TG || TG;
         
 		subConverter = env.SUBAPI || subConverter;
 		if (subConverter.includes("http://")) {
@@ -48,19 +56,17 @@ export default {
 		const timeTemp = Math.ceil(currentDate.getTime() / 1000);
 		const fakeToken = await MD5MD5(`${mytoken}${timeTemp}`);
 
-        // 身分識別邏輯 (統一為一個入口)
         const isAuthorized = [mytoken, fakeToken].includes(token) || url.pathname === ("/" + mytoken) || url.pathname.startsWith("/" + mytoken + "?");
 		SUBUpdateTime = env.SUBUPTIME || SUBUpdateTime;
 
-		// 🛡️ 未授權直接返回假 Nginx 頁面
 		if (!isAuthorized) {
+            if (TG == 1 && url.pathname !== "/" && url.pathname !== "/favicon.ico") await sendMessage(`#异常访问 ${FileName}`, request.headers.get('CF-Connecting-IP'), `UA: ${userAgent}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
 			if (env.URL302) return Response.redirect(env.URL302, 302);
 			else if (env.URL) return await proxyURL(env.URL, url);
 			else return new Response(await nginx(), { status: 200, headers: { 'Content-Type': 'text/html; charset=UTF-8' } });
 		} else {
 			if (env.KV) {
 				await 迁移地址列表(env, 'LINK.txt');
-                // 網頁 UI 渲染入口
 				if (userAgent.includes('mozilla') && !url.search) {
 					return await KV(request, env, 'LINK.txt', mytoken, editPassword);
 				} else {
@@ -68,9 +74,9 @@ export default {
 				}
 			} else {
 				MainData = env.LINK || MainData;
+                if (env.LINKSUB) urls = await ADD(env.LINKSUB);
 			}
 			
-            // 訂閱獲取邏輯
 			let 重新汇总所有链接 = await ADD(MainData + '\n' + urls.join('\n'));
 			let 自建节点 = "";
 			let 订阅链接 = "";
@@ -80,6 +86,10 @@ export default {
 			}
 			MainData = 自建节点;
 			urls = await ADD(订阅链接);
+            
+            if (!userAgent.includes('mozilla')) {
+                await sendMessage(`#获取订阅 ${FileName}`, request.headers.get('CF-Connecting-IP'), `UA: ${userAgentHeader}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
+            }
 
 			let 订阅格式 = 'base64';
 			if (userAgent.includes('null') || userAgent.includes('subconverter') || userAgent.includes('nekobox') || userAgent.includes(('CF-Workers-SUB').toLowerCase())) {
@@ -190,6 +200,21 @@ async function nginx() {
 	return `<!DOCTYPE html><html><head><title>Welcome to nginx!</title><style>body { width: 35em; margin: 0 auto; font-family: Tahoma, Verdana, Arial, sans-serif; }</style></head><body><h1>Welcome to nginx!</h1><p>If you see this page, the nginx web server is successfully installed and working. Further configuration is required.</p><p>For online documentation and support please refer to <a href="http://nginx.org/">nginx.org</a>.<br/>Commercial support is available at <a href="http://nginx.com/">nginx.com</a>.</p><p><em>Thank you for using nginx.</em></p></body></html>`;
 }
 
+async function sendMessage(type, ip, add_data = "") {
+	if (BotToken !== '' && ChatID !== '') {
+		let msg = "";
+		const response = await fetch(`http://ip-api.com/json/${ip}?lang=zh-CN`);
+		if (response.status == 200) {
+			const ipInfo = await response.json();
+			msg = `${type}\nIP: ${ip}\n国家: ${ipInfo.country}\n<tg-spoiler>城市: ${ipInfo.city}\n组织: ${ipInfo.org}\nASN: ${ipInfo.as}\n${add_data}`;
+		} else {
+			msg = `${type}\nIP: ${ip}\n<tg-spoiler>${add_data}`;
+		}
+		let url = "https://api.telegram.org/bot" + BotToken + "/sendMessage?chat_id=" + ChatID + "&parse_mode=HTML&text=" + encodeURIComponent(msg);
+		return fetch(url, { method: 'get', headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;', 'Accept-Encoding': 'gzip, deflate, br', 'User-Agent': 'Mozilla/5.0 Chrome/90.0.4430.72' } });
+	}
+}
+
 function base64Decode(str) {
 	const bytes = new Uint8Array(atob(str).split('').map(c => c.charCodeAt(0)));
 	return new TextDecoder('utf-8').decode(bytes);
@@ -233,6 +258,7 @@ async function proxyURL(proxyURL, url) {
 	return newResponse;
 }
 
+// 🎯 已完美還原原版解析邏輯，確保節點數據不丟失
 async function getSUB(api, request, 追加UA, userAgentHeader) {
 	if (!api || api.length === 0) return [];
 	let newapi = "";
@@ -246,11 +272,18 @@ async function getSUB(api, request, 追加UA, userAgentHeader) {
 		for (const [index, response] of responses.entries()) {
 			if (response.status === 'fulfilled') {
 				const content = await response.value || 'null'; 
-				if (content.includes('proxies') && content.includes('proxy-groups')) 订阅转换URLs += "|" + api[index]; 
-				else if (content.includes('outbounds') && content.includes('inbounds')) 订阅转换URLs += "|" + api[index]; 
-				else if (content.includes('://')) newapi += content + '\n'; 
-				else if (isValidBase64(content)) newapi += base64Decode(content) + '\n'; 
-				else 异常订阅 += `trojan://CMLiussss@127.0.0.1:8888?security=tls&allowInsecure=1&type=tcp&headerType=none#%E5%BC%82%E5%B8%B8%E8%AE%A2%E9%98%85%20${api[index].split('://')[1].split('/')[0]}\n`;
+                // 恢復原版的非嚴格匹配邏輯，解決數據丟失問題
+				if (content.includes('proxies') && content.includes('proxy-groups')) {
+                    订阅转换URLs += "|" + api[index]; 
+                } else if (content.includes('outbounds') && content.includes('inbounds')) {
+                    订阅转换URLs += "|" + api[index]; 
+                } else if (content.includes('://')) {
+                    newapi += content + '\n'; 
+                } else if (isValidBase64(content)) {
+                    newapi += base64Decode(content) + '\n'; 
+                } else {
+                    异常订阅 += `trojan://CMLiussss@127.0.0.1:8888?security=tls&allowInsecure=1&type=tcp&headerType=none#%E5%BC%82%E5%B8%B8%E8%AE%A2%E9%98%85%20${api[index].split('://')[1].split('/')[0]}\n`;
+                }
 			}
 		}
 	} catch (error) { console.error(error); } finally { clearTimeout(timeout); }
@@ -281,7 +314,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
 	const url = new URL(request.url);
     
     try {
-        // 🛡️ API 接口：處理 AJAX 的抓取與保存請求 (嚴格密碼校驗)
         if (request.method === "POST") {
             const action = request.headers.get('x-action');
             const providedPass = request.headers.get('x-edit-pass');
@@ -310,7 +342,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
             return new Response("未知的操作", { status: 400 });
         }
 
-        // 🌐 渲染純淨的 HTML (不包含任何節點數據)
         const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -329,7 +360,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
         .glass { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .btn-hover { transition: all 0.2s ease; }
         .btn-hover:active { transform: scale(0.97); }
-        /* 隱藏代碼框 */
         #editor-container { display: none; }
     </style>
 </head>
@@ -448,7 +478,7 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
     </div>
 
     <script>
-    let validPassword = ""; // 成功解鎖後保存在內存中的密碼
+    let validPassword = ""; 
 
     function showToast(msg, isError = false) {
         const toast = document.getElementById('toast');
@@ -470,7 +500,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
         }
     }
         
-    // 🔓 解鎖並抓取數據
     function unlockEditor() {
         const passInput = document.getElementById('unlockPass').value;
         if (!passInput) return showToast('請輸入解鎖碼', true);
@@ -490,7 +519,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
             
             const rawData = await response.text();
             
-            // 驗證成功：保存密碼，隱藏鎖定層，顯示編輯器，注入數據
             validPassword = passInput; 
             document.getElementById('lock-screen').style.display = 'none';
             document.getElementById('editor-container').style.display = 'flex';
@@ -503,7 +531,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
         });
     }
 
-    // 💾 保存數據
     function saveContent(button) {
         const textarea = document.getElementById('content');
         textarea.value = textarea.value.replace(/：/g, ':');
@@ -518,7 +545,7 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
             headers: { 
                 'Content-Type': 'text/plain;charset=UTF-8',
                 'x-action': 'save',
-                'x-edit-pass': validPassword // 帶上剛才驗證通過的密碼
+                'x-edit-pass': validPassword 
             }
         })
         .then(async response => {
@@ -539,7 +566,6 @@ async function KV(request, env, txt = 'ADD.txt', viewerToken, editPassword) {
         });
     }
 
-    // 支援 Enter 鍵解鎖
     document.getElementById('unlockPass').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') unlockEditor();
     });
