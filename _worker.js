@@ -5,7 +5,7 @@ let guestToken = ''; //可以随便取，或者uuid生成，https://1024tools.co
 let BotToken = ''; //可以为空，或者@BotFather中输入/start，/newbot，并关注机器人
 let ChatID = ''; //可以为空，或者@userinfobot中获取，/start
 let TG = 0; //小白勿动， 开发者专用，1 为推送所有的访问信息，0 为不推送订阅转换后端的访问信息与异常访问
-let FileName = '聚合订阅终端';
+let FileName = 'RunSing 聚合订阅';
 let SUBUpdateTime = 6; //自定义订阅更新时间，单位小时
 let total = 99;//TB
 let timestamp = 4102329600000;//2099-12-31
@@ -19,6 +19,11 @@ let urls = [];
 let subConverter = "SUBAPI.cmliussss.net"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
 let subConfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
 let subProtocol = 'https';
+
+// -------------------------------------------------------------
+// 🔒 安全配置：控制台访问密码
+// -------------------------------------------------------------
+const ADMIN_PWD = "51121";
 
 export default {
 	async fetch(request, env) {
@@ -396,37 +401,45 @@ async function 迁移地址列表(env, txt = 'ADD.txt') {
 }
 
 // -------------------------------------------------------------
-// 🔥 全新重构的 UI 介面
+// 🔥 全新重构的 BTYcloud 定製 UI 介面 (帶伺服器級密碼鎖)
 // -------------------------------------------------------------
 async function KV(request, env, txt = 'ADD.txt', guest) {
 	const url = new URL(request.url);
 	try {
+        // 伺服器端密碼校驗 & 保存邏輯
 		if (request.method === "POST") {
-			if (!env.KV) return new Response("未绑定KV空间", { status: 400 });
+			if (!env.KV) return new Response(JSON.stringify({error: "未绑定KV空间"}), { status: 400 });
 			try {
-				const content = await request.text();
-				await env.KV.put(txt, content);
-				return new Response("保存成功");
+                const reqData = await request.json();
+                if (reqData.pwd !== ADMIN_PWD) {
+                    return new Response(JSON.stringify({error: "Unauthorized"}), { status: 401, headers: {"Content-Type": "application/json"} });
+                }
+
+                // 行為：獲取數據
+                if (reqData.action === 'get') {
+                    const content = await env.KV.get(txt) || '';
+                    return new Response(JSON.stringify({content: content}), { headers: {"Content-Type": "application/json"} });
+                } 
+                // 行為：保存數據
+                else if (reqData.action === 'save') {
+                    await env.KV.put(txt, reqData.content);
+                    return new Response(JSON.stringify({success: true}), { headers: {"Content-Type": "application/json"} });
+                }
 			} catch (error) {
-				return new Response("保存失败: " + error.message, { status: 500 });
+				return new Response(JSON.stringify({error: error.message}), { status: 500, headers: {"Content-Type": "application/json"} });
 			}
 		}
 
-		let content = '';
 		let hasKV = !!env.KV;
-		if (hasKV) {
-			try { content = await env.KV.get(txt) || ''; } 
-            catch (error) { content = '读取数据时发生错误: ' + error.message; }
-		}
 
         // 定製卡片陣列
         const subLinks = [
-            { name: "自适应", path: "?sub", color: "#4f46e5" },
-            { name: "Base64", path: "?b64", color: "#0ea5e9" },
-            { name: "Clash", path: "?clash", color: "#d946ef" },
-            { name: "Sing-box", path: "?sb", color: "#8b5cf6" },
-            { name: "Surge", path: "?surge", color: "#f43f5e" },
-            { name: "Loon", path: "?loon", color: "#f97316" }
+            { name: "自适应", path: "?sub", color: "#0e7490" },
+            { name: "Base64", path: "?b64", color: "#0369a1" },
+            { name: "Clash", path: "?clash", color: "#1d4ed8" },
+            { name: "Sing-box", path: "?sb", color: "#4338ca" },
+            { name: "Surge", path: "?surge", color: "#be123c" },
+            { name: "Loon", path: "?loon", color: "#c2410c" }
         ];
 
 		const html = `
@@ -435,63 +448,76 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${FileName} 管理面板</title>
+    <title>RunSing 订阅控制台 | BTYcloud</title>
     <style>
         :root {
-            --bg-color: #f3f4f6;
+            --bg-color: #f1f5f9;
             --card-bg: #ffffff;
-            --text-main: #1f2937;
-            --text-muted: #6b7280;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --success: #10b981;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --success: #059669;
+            --danger: #e11d48;
             --border-radius: 12px;
         }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; line-height: 1.6; }
         
         .container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        .header { text-align: center; padding: 20px 0; }
-        .header h1 { margin: 0; font-size: 24px; color: var(--text-main); display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .header { text-align: center; padding: 20px 0 10px 0; }
+        .header h1 { margin: 0; font-size: 26px; color: var(--text-main); letter-spacing: 1px; }
+        .header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 5px; font-weight: 500; }
         
-        .card { background: var(--card-bg); border-radius: var(--border-radius); padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .card-title { margin-top: 0; font-size: 18px; color: var(--text-main); border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+        .card { background: var(--card-bg); border-radius: var(--border-radius); padding: 25px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .card-title { margin-top: 0; font-size: 18px; color: var(--text-main); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;}
+        
+        /* 解锁界面 */
+        .lock-container { text-align: center; padding: 30px 10px; }
+        .lock-icon { font-size: 40px; margin-bottom: 15px; }
+        .pwd-input { padding: 10px 15px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 8px; width: 200px; text-align: center; outline: none; transition: 0.2s; }
+        .pwd-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2); }
         
         /* 编辑器样式 */
         .editor-wrapper { position: relative; }
-        .editor { width: 100%; height: 280px; background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', Courier, monospace; font-size: 14px; padding: 15px; border: none; border-radius: 8px; resize: vertical; line-height: 1.5; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .editor { width: 100%; height: 180px; background-color: #1e293b; color: #38bdf8; font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 15px; border: none; border-radius: 8px; resize: vertical; line-height: 1.6; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
         .editor:focus { border: 1px solid var(--primary); }
         .action-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        
         .btn { padding: 8px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; }
         .btn-primary { background-color: var(--primary); color: white; }
         .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
         .btn-success { background-color: var(--success); color: white; }
-        .status-text { font-size: 14px; color: var(--text-muted); }
+        .status-text { font-size: 13px; color: var(--text-muted); }
         
         /* 订阅卡片网格 */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
-        .sub-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; text-align: center; transition: all 0.2s; background: #fafafa; }
-        .sub-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .sub-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; display: inline-block; padding: 4px 12px; border-radius: 20px; color: white; }
+        .sub-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; transition: all 0.2s; background: #f8fafc; }
+        .sub-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(2, 132, 199, 0.1); }
+        .sub-title { font-weight: bold; font-size: 15px; margin-bottom: 12px; display: inline-block; padding: 4px 16px; border-radius: 20px; color: white; letter-spacing: 0.5px;}
         .sub-link { font-size: 12px; color: var(--text-muted); word-break: break-all; margin-bottom: 15px; user-select: all; }
         .sub-actions { display: flex; gap: 10px; justify-content: center; }
-        .btn-outline { background: transparent; border: 1px solid #d1d5db; color: var(--text-main); font-size: 12px; padding: 6px 12px; }
-        .btn-outline:hover { background: #e5e7eb; }
+        .btn-outline { background: transparent; border: 1px solid #cbd5e1; color: var(--text-main); font-size: 12px; padding: 6px 12px; }
+        .btn-outline:hover { background: #e2e8f0; }
 
         /* 弹窗样式 */
-        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 1000; }
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
         /* 隐藏区块 */
-        .guest-section { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #e5e7eb; }
-        .toggle-guest { color: var(--primary); cursor: pointer; font-size: 14px; text-align: center; margin-top: 15px; font-weight: bold; }
+        .guest-section { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #cbd5e1; }
+        .toggle-guest { color: var(--primary); cursor: pointer; font-size: 13px; text-align: center; margin-top: 20px; font-weight: bold; }
         .toggle-guest:hover { text-decoration: underline; }
 
         /* QR Code Modal */
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-        .modal-content { background-color: white; padding: 20px; border-radius: 12px; text-align: center; max-width: 300px; position: relative; }
-        .close { position: absolute; top: 10px; right: 15px; color: #aaa; font-size: 24px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: black; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); align-items: center; justify-content: center; }
+        .modal-content { background-color: white; padding: 25px; border-radius: 12px; text-align: center; max-width: 300px; position: relative; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .close { position: absolute; top: 10px; right: 15px; color: #94a3b8; font-size: 24px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .close:hover { color: #0f172a; }
         #qrcode_canvas { display: flex; justify-content: center; margin-top: 15px; }
+
+        /* 页脚品牌 */
+        .footer { text-align: center; margin-top: 30px; margin-bottom: 20px; font-size: 12px; color: #94a3b8; line-height: 1.8; }
+        .footer b { color: #64748b; }
 
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@keeex/qrcodejs-kx@1.0.2/qrcode.min.js"></script>
@@ -503,32 +529,42 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
 <div id="qrModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal()">&times;</span>
-        <h3 style="margin-top:0;">扫码订阅</h3>
+        <h3 style="margin-top:0; color:#0f172a;">扫码配置节点</h3>
         <div id="qrcode_canvas"></div>
     </div>
 </div>
 
 <div class="container">
     <div class="header">
-        <h1>⚡️ ${FileName} 控制台</h1>
-        <div style="font-size:12px; color:#888;">后端版本: CF-Workers-SUB</div>
+        <h1>🚀 RunSing SubCenter</h1>
+        <div class="subtitle">Global Network Infrastructure</div>
     </div>
 
     <div class="card">
-        <h2 class="card-title">📝 节点与订阅汇聚源</h2>
+        <h2 class="card-title">📝 节点与订阅池配置 (管理员)</h2>
         ${hasKV ? `
-        <div class="editor-wrapper">
-            <textarea id="content" class="editor" placeholder="每行输入一个节点链接或订阅链接...&#10;例如:&#10;vless://...&#10;https://.../sub" spellcheck="false">${content}</textarea>
+        <div id="lock-screen" class="lock-container">
+            <div class="lock-icon">🔒</div>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">系统已开启企业级防护，请输入授权密钥以检视底盘节点</p>
+            <input type="password" id="adminPwd" class="pwd-input" placeholder="输入密钥" onkeypress="if(event.keyCode==13) unlockEditor()">
+            <button class="btn btn-primary" style="margin-left:10px;" onclick="unlockEditor()">验证身份</button>
+            <p id="lockError" style="color: var(--danger); font-size: 13px; margin-top: 15px; display: none;">❌ 密钥错误或权限拒绝</p>
         </div>
-        <div class="action-bar">
-            <span class="status-text" id="saveStatus">就绪</span>
-            <button class="btn btn-primary" id="saveBtn" onclick="saveContent(this)">💾 保存配置</button>
+
+        <div id="editor-screen" style="display:none;">
+            <div class="editor-wrapper">
+                <textarea id="content" class="editor" placeholder="每行输入一个节点链接或订阅链接...&#10;例如:&#10;vless://...&#10;https://.../sub" spellcheck="false"></textarea>
+            </div>
+            <div class="action-bar">
+                <span class="status-text" id="saveStatus">就绪</span>
+                <button class="btn btn-primary" id="saveBtn" onclick="saveContent(this)">💾 保存配置</button>
+            </div>
         </div>
-        ` : '<p style="color:red; text-align:center;">⚠️ 请先绑定名称为 <strong>KV</strong> 的命名空间</p>'}
+        ` : '<p style="color:red; text-align:center;">⚠️ 严重警告：系统未绑定名称为 <strong>KV</strong> 的命名空间，配置无法持久化！</p>'}
     </div>
 
     <div class="card">
-        <h2 class="card-title">🔗 主订阅地址 (管理員)</h2>
+        <h2 class="card-title">🔗 官方聚合节点下发</h2>
         <div class="grid">
             ${subLinks.map((item, index) => `
             <div class="sub-card">
@@ -542,18 +578,18 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             `).join('')}
         </div>
 
-        <div class="toggle-guest" onclick="toggleGuest()">[ 查看访客专用订阅配置 ]</div>
+        <div class="toggle-guest" onclick="toggleGuest()">[ 展开访客专用(Guest)下发通道 ]</div>
         
         <div id="guestSection" class="guest-section">
-            <h2 class="card-title" style="border-bottom:none; margin-bottom:5px;">👤 访客专用地址</h2>
-            <p style="font-size:13px; color:#888; margin-bottom:15px;">访客仅能获取订阅节点，无法进入此控制台。Token: <code style="background:#eee;padding:2px 4px;border-radius:4px;">${guest}</code></p>
+            <h2 class="card-title" style="border-bottom:none; margin-bottom:5px;">👤 访客隔离通道</h2>
+            <p style="font-size:13px; color:#64748b; margin-bottom:15px;">访客仅具备节点拉取权限，不具备任何后端访问权。凭证: <code style="background:#e2e8f0;padding:2px 6px;border-radius:4px;color:#0f172a;">${guest}</code></p>
             <div class="grid">
                 ${subLinks.map((item, index) => `
                 <div class="sub-card">
                     <div class="sub-title" style="background-color: ${item.color}">${item.name}</div>
                     <div class="sub-link">https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}</div>
                     <div class="sub-actions">
-                        <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">复制链接</button>
+                        <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">复制</button>
                         <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">二维码</button>
                     </div>
                 </div>
@@ -561,21 +597,28 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             </div>
         </div>
     </div>
+
+    <div class="footer">
+        ⚡️ Powered by <b>润昇创新 (RunSing Innovation)</b><br>
+        🛡️ Technical Support by <b>BTYcloud</b> - 润昇旗下网络与计算服务商
+    </div>
 </div>
 
 <script>
+    let sessionPwd = ""; // 验证通过后缓存在本地
+
     // Toast 通知
     function showToast(msg) {
         const toast = document.getElementById('toast');
         toast.textContent = msg;
         toast.style.opacity = 1;
-        setTimeout(() => toast.style.opacity = 0, 2000);
+        setTimeout(() => toast.style.opacity = 0, 2500);
     }
 
     // 复制功能
     function copyText(text) {
         navigator.clipboard.writeText(text).then(() => {
-            showToast('✅ 链接已复制到剪贴板');
+            showToast('✅ 订阅链接已复制');
         }).catch(err => {
             alert('复制失败，请手动复制');
         });
@@ -591,7 +634,7 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             text: text,
             width: 200,
             height: 200,
-            colorDark : "#000000",
+            colorDark : "#0f172a",
             colorLight : "#ffffff",
             correctLevel : QRCode.CorrectLevel.M
         });
@@ -614,46 +657,80 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
         }
     }
 
-    // 自动保存逻辑
-    if (document.querySelector('.editor')) {
+    // ==========================================
+    // 安全逻辑：解锁与保存
+    // ==========================================
+    if (document.querySelector('#lock-screen')) {
         let timer;
         const textarea = document.getElementById('content');
         const btn = document.getElementById('saveBtn');
         const status = document.getElementById('saveStatus');
 
-        function replaceFullwidthColon() {
-            if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-                textarea.value = textarea.value.replace(/：/g, ':');
+        // 解锁编辑器 API
+        async function unlockEditor() {
+            const pwdInput = document.getElementById('adminPwd');
+            const pwd = pwdInput.value;
+            if(!pwd) return;
+            
+            pwdInput.disabled = true;
+            try {
+                const res = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: 'get', pwd: pwd})
+                });
+                
+                if(res.ok) {
+                    const data = await res.json();
+                    textarea.value = data.content;
+                    sessionPwd = pwd; // 保存合法密钥
+                    document.getElementById('lock-screen').style.display = 'none';
+                    document.getElementById('editor-screen').style.display = 'block';
+                    showToast('🔓 权限验证成功，系统已解锁');
+                } else {
+                    document.getElementById('lockError').style.display = 'block';
+                    pwdInput.disabled = false;
+                    pwdInput.value = '';
+                }
+            } catch(e) {
+                document.getElementById('lockError').textContent = '❌ 网络请求异常';
+                document.getElementById('lockError').style.display = 'block';
+                pwdInput.disabled = false;
             }
         }
 
+        // 保存内容 API
         function saveContent(buttonElement) {
-            replaceFullwidthColon();
+            if(!sessionPwd) return;
+
+            if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                textarea.value = textarea.value.replace(/：/g, ':');
+            }
             const newContent = textarea.value;
             
-            buttonElement.textContent = '保存中...';
+            buttonElement.textContent = '执行中...';
             buttonElement.disabled = true;
-            status.textContent = '正在同步至云端...';
+            status.textContent = '正在与 BTYcloud 云端握手...';
 
             fetch(window.location.href, {
                 method: 'POST',
-                body: newContent,
-                headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                body: JSON.stringify({action: 'save', pwd: sessionPwd, content: newContent}),
+                headers: { 'Content-Type': 'application/json' },
                 cache: 'no-cache'
             })
             .then(response => {
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 const time = new Date().toLocaleTimeString();
-                status.textContent = '✅ 云端已同步 (' + time + ')';
+                status.textContent = '✅ BTYcloud 节点数据已同步 (' + time + ')';
                 buttonElement.className = 'btn btn-success';
-                buttonElement.textContent = '已保存';
-                showToast('✅ 配置已成功保存');
+                buttonElement.textContent = '配置已更新';
+                showToast('✅ 节点池数据已安全更新');
             })
             .catch(error => {
-                status.textContent = '❌ 保存失败: ' + error.message;
+                status.textContent = '❌ 同步断开: ' + error.message;
                 buttonElement.className = 'btn btn-primary';
-                buttonElement.textContent = '重新保存';
-                showToast('❌ 保存失败');
+                buttonElement.textContent = '重试保存';
+                showToast('❌ 同步失败，请检查网络');
             })
             .finally(() => {
                 setTimeout(() => {
@@ -664,11 +741,15 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             });
         }
 
+        // 绑定自动保存事件
         textarea.addEventListener('input', () => {
-            status.textContent = '📝 内容已修改，等待保存...';
+            status.textContent = '📝 拦截到变更，等待推送...';
             clearTimeout(timer);
-            timer = setTimeout(() => saveContent(btn), 3000); // 打字停顿3秒自动保存
+            timer = setTimeout(() => saveContent(btn), 3000); // 停顿3秒自动提交
         });
+        
+        // 暴露 unlock 给全局
+        window.unlockEditor = unlockEditor;
     }
 </script>
 </body>
