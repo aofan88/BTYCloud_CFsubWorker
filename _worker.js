@@ -401,12 +401,12 @@ async function 遷移地址列表(env, txt = 'ADD.txt') {
 }
 
 // -------------------------------------------------------------
-// 🔥 全新重構的 BTYCloud 定製 UI 介面 (V5.1 Ultra)
+// 🔥 V6.0 BTYCloud 終極原生定制版 (日夜雙模 + 密碼鎖)
 // -------------------------------------------------------------
 async function KV(request, env, txt = 'ADD.txt', guest) {
 	const url = new URL(request.url);
 	try {
-        // 伺服器端密碼校驗 & 保存邏輯
+        // 服務器端密碼校驗 & 保存邏輯
 		if (request.method === "POST") {
 			if (!env.KV) return new Response(JSON.stringify({error: "未綁定KV空間"}), { status: 400 });
 			try {
@@ -432,12 +432,12 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
 
         // 定製卡片陣列
         const subLinks = [
-            { name: "自適應", path: "?sub", color: "#3b82f6" },
-            { name: "Base64", path: "?b64", color: "#0ea5e9" },
-            { name: "Clash", path: "?clash", color: "#8b5cf6" },
-            { name: "Sing-box", path: "?sb", color: "#10b981" },
-            { name: "Surge", path: "?surge", color: "#f43f5e" },
-            { name: "Loon", path: "?loon", color: "#f97316" }
+            { name: "自適應", path: "?sub" },
+            { name: "Base64", path: "?b64" },
+            { name: "Clash", path: "?clash" },
+            { name: "Sing-box", path: "?sb" },
+            { name: "Surge", path: "?surge" },
+            { name: "Loon", path: "?loon" }
         ];
 
 		const html = `
@@ -448,199 +448,204 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTYCloud 訂閱管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         /* 日夜雙模切換變數 */
         :root { 
-            --bg: #0f172a; 
-            --glass-bg: rgba(30, 41, 59, 0.65); 
-            --glass-border: rgba(255, 255, 255, 0.08);
+            --bg: #050505; 
             --accent: #3b82f6; 
-            --text-main: #f8fafc; 
+            --text-main: #e2e8f0; 
             --text-dim: #94a3b8; 
-            --input-bg: rgba(15, 23, 42, 0.6);
-            --input-text: #38bdf8;
-            --modal-bg: rgba(15, 23, 42, 0.8);
-            --modal-content: #1e293b;
+            --card-bg: rgba(255, 255, 255, 0.02); 
+            --card-border: rgba(255, 255, 255, 0.05);
+            --card-hover: rgba(59, 130, 246, 0.03);
+            --input-bg: rgba(0, 0, 0, 0.5);
+            --modal-bg: rgba(5, 5, 5, 0.8);
+            --modal-content: #111;
         }
         
         :root.light-theme {
             --bg: #f8fafc;
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(0, 0, 0, 0.05);
             --accent: #2563eb;
             --text-main: #0f172a;
             --text-dim: #64748b;
-            --input-bg: #f1f5f9;
-            --input-text: #0284c7;
-            --modal-bg: rgba(255, 255, 255, 0.7);
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --card-hover: #f1f5f9;
+            --input-bg: #f8fafc;
+            --modal-bg: rgba(255, 255, 255, 0.8);
             --modal-content: #ffffff;
         }
 
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text-main); transition: 0.4s ease; margin: 0; min-height: 100vh; overflow-x: hidden;}
+        body { font-family: 'Lexend', sans-serif; background-color: var(--bg); color: var(--text-main); transition: 0.4s ease; margin: 0; min-height: 100vh; overflow-x: hidden;}
         .mono { font-family: 'JetBrains Mono', monospace; }
         
-        /* 網頁動態光暈背景 */
-        .blob-1 { position: fixed; top: -10%; left: -10%; width: 50vw; height: 50vw; border-radius: 50%; background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 60%); filter: blur(60px); z-index: -1; animation: float 10s infinite ease-in-out alternate; pointer-events: none;}
-        .blob-2 { position: fixed; bottom: -10%; right: -10%; width: 60vw; height: 60vw; border-radius: 50%; background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 60%); filter: blur(60px); z-index: -1; animation: float 12s infinite ease-in-out alternate-reverse; pointer-events: none;}
-        @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(30px, 50px); } }
+        /* Spaceship 網格背景 */
+        body:not(.light-theme) .hero-bg { background-image: radial-gradient(circle at 50% -20%, #1e293b 0%, transparent 70%), linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 100% 100%, 50px 50px, 50px 50px; }
+        body.light-theme .hero-bg { background-image: radial-gradient(circle at 50% -20%, #e2e8f0 0%, transparent 70%), linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px); background-size: 100% 100%, 50px 50px, 50px 50px; }
 
-        /* 毛玻璃卡片 */
-        .glass-card { background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 1.25rem; padding: 24px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); transition: 0.3s; }
+        /* Bento Box 卡片 */
+        .bento-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 2rem; padding: 2rem; transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); }
+        .bento-box:hover { border-color: var(--accent); background: var(--card-hover); transform: translateY(-2px); }
         
         /* 自定義滾動條 */
-        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
 
-        /* 標題與字體 */
-        .card-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
-        
         /* 輸入框與按鈕 */
-        .pwd-input { padding: 12px 20px; font-size: 16px; border: 1px solid var(--glass-border); border-radius: 12px; width: 220px; text-align: center; outline: none; background: var(--input-bg); color: var(--text-main); transition: 0.2s; letter-spacing: 2px;}
+        .pwd-input { padding: 12px 20px; font-size: 16px; border: 1px solid var(--card-border); border-radius: 12px; width: 220px; text-align: center; outline: none; background: var(--input-bg); color: var(--text-main); transition: 0.2s; letter-spacing: 2px;}
         .pwd-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
         
-        .editor { width: 100%; height: 180px; background-color: var(--input-bg); color: var(--input-text); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 16px; border: 1px solid var(--glass-border); border-radius: 12px; resize: vertical; line-height: 1.6; outline: none; transition: 0.3s; }
+        .editor { width: 100%; height: 160px; background-color: var(--input-bg); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 16px; border: 1px solid var(--card-border); border-radius: 12px; resize: vertical; line-height: 1.6; outline: none; transition: 0.3s; }
         .editor:focus { border-color: var(--accent); }
         
-        .btn { padding: 8px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: 500; font-size: 13px; transition: all 0.2s; }
+        .btn { padding: 8px 24px; border: none; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; }
         .btn-primary { background-color: var(--accent); color: white; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
-        .btn-outline { background: transparent; border: 1px solid var(--glass-border); color: var(--text-main); padding: 6px 14px; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-main); padding: 6px 14px; }
         .btn-outline:hover { background: var(--input-bg); }
 
         /* 子訂閱卡片 */
-        .sub-card { border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; text-align: center; transition: all 0.2s; background: rgba(255,255,255,0.02); }
-        .sub-card:hover { border-color: var(--accent); transform: translateY(-2px); background: rgba(255,255,255,0.05); }
-        .sub-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; display: inline-block; padding: 4px 12px; border-radius: 20px; color: white; letter-spacing: 0.5px; }
+        .bento-box-small { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 1.25rem; padding: 1.25rem; text-align: center; transition: all 0.4s; }
+        .bento-box-small:hover { border-color: var(--accent); background: var(--card-hover); transform: translateY(-2px); }
+        .sub-title { font-weight: 800; font-size: 14px; margin-bottom: 12px; display: inline-block; padding: 4px 16px; border-radius: 20px; background-color: var(--accent); color: white; letter-spacing: 0.5px; }
         .sub-link { font-size: 11px; color: var(--text-dim); word-break: break-all; margin-bottom: 16px; user-select: all; font-family: 'JetBrains Mono', monospace;}
         
         /* 彈窗 */
-        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); }
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2); }
         .toast-show { opacity: 1 !important; transform: translate(-50%, -10px) !important; }
 
-        .guest-section { display: none; margin-top: 24px; padding-top: 24px; border-top: 1px dashed var(--glass-border); }
-        .toggle-guest { color: var(--text-dim); cursor: pointer; font-size: 13px; text-align: center; margin-top: 24px; transition: 0.2s; }
+        .guest-section { display: none; margin-top: 32px; padding-top: 32px; border-top: 1px dashed var(--card-border); }
+        .toggle-guest { color: var(--text-dim); cursor: pointer; font-size: 13px; text-align: center; margin-top: 24px; transition: 0.2s; font-weight: 600;}
         .toggle-guest:hover { color: var(--text-main); }
 
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: var(--modal-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); align-items: center; justify-content: center; }
-        .modal-content { background-color: var(--modal-content); padding: 30px; border-radius: 24px; text-align: center; max-width: 320px; position: relative; border: 1px solid var(--glass-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .close { position: absolute; top: 12px; right: 20px; color: var(--text-dim); font-size: 24px; cursor: pointer; transition: 0.2s;}
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: var(--modal-bg); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
+        .modal-content { background-color: var(--modal-content); padding: 30px; border-radius: 24px; text-align: center; max-width: 320px; position: relative; border: 1px solid var(--card-border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        .close { position: absolute; top: 12px; right: 20px; color: var(--text-dim); font-size: 28px; cursor: pointer; transition: 0.2s;}
         .close:hover { color: var(--text-main); }
-        #qrcode_canvas { display: flex; justify-content: center; margin-top: 20px; padding: 10px; background: white; border-radius: 16px; }
 
-        .theme-switch { cursor: pointer; padding: 8px; border-radius: 50%; background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main); transition: 0.3s; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;}
+        .theme-switch { cursor: pointer; padding: 8px; border-radius: 50%; background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text-main); transition: 0.3s; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 18px;}
         .theme-switch:hover { background: var(--input-bg); }
     </style>
 </head>
-<body>
-
-<div class="blob-1"></div>
-<div class="blob-2"></div>
+<body class="hero-bg">
 
 <div id="toast">操作成功</div>
 
 <div id="qrModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal()">&times;</span>
-        <h3 style="margin-top:0; color:var(--text-main); font-weight: 600; font-size: 18px;">設備掃碼</h3>
+        <h3 style="margin-top:0; color:var(--text-main); font-weight: 800; font-size: 18px;">設備掃碼</h3>
         <p style="font-size: 12px; color: var(--text-dim); margin-top: 5px;">請使用代理客戶端掃描二維碼</p>
-        <div id="qrcode_canvas"></div>
+        <div id="qrcode_canvas" class="mt-4 flex justify-center bg-white p-3 rounded-2xl"></div>
     </div>
 </div>
 
-<div class="max-w-4xl mx-auto px-6 pb-12">
-    <header class="flex justify-between items-center py-10">
-        <div class="flex items-center gap-3">
-            <div class="text-2xl font-black tracking-tight cursor-pointer">
-                <span style="color: #3b82f6;">BTY</span><span style="color: var(--text-main);">Cloud</span>
+<header class="w-full pt-12 pb-8 px-6">
+    <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <div class="flex flex-col leading-none">
+                <span class="text-3xl font-extrabold tracking-tighter"><span class="text-blue-500">BTY</span>CLOUD</span>
+                <span class="text-[10px] mono tracking-[0.2em] mt-2 uppercase" style="color: var(--text-dim);">八通雲計算服務</span>
             </div>
-            <div style="height: 18px; width: 1px; background-color: var(--glass-border);"></div>
-            <div class="text-sm font-medium tracking-widest" style="color: var(--text-dim);">八通雲計算服務</div>
         </div>
-        <button class="theme-switch text-xl" onclick="toggleTheme()" id="themeIcon">🌙</button>
-    </header>
+        <button class="theme-switch" onclick="toggleTheme()" id="themeIcon">🌙</button>
+    </div>
+</header>
 
-    <div class="flex flex-col gap-6">
+<div class="max-w-5xl mx-auto px-6 pb-20 flex flex-col gap-8">
 
-        <div class="glass-card">
-            <h2 class="card-title">
-                <span>📝 配置編輯 Edit Config</span>
-            </h2>
-            
-            ${hasKV ? `
-            <div id="lock-screen" class="text-center py-10">
-                <p class="text-sm mb-6" style="color: var(--text-dim);">系統已鎖定，請輸入金鑰</p>
-                <div class="flex justify-center gap-3">
-                    <input type="password" id="adminPwd" class="pwd-input" placeholder="•••••" onkeypress="if(event.keyCode==13) unlockEditor()">
-                    <button class="btn btn-primary" onclick="unlockEditor()">解鎖</button>
-                </div>
-                <p id="lockError" class="text-sm mt-4 text-red-400 hidden">❌ 金鑰無效</p>
+    <div class="bento-box">
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h2 class="text-2xl font-bold">📝 配置編輯 Edit Config</h2>
+                <p class="text-sm mt-1" style="color: var(--text-dim);">核心路由配置節點池，受系統安全鎖保護。</p>
             </div>
-
-            <div id="editor-screen" style="display:none;">
-                <textarea id="content" class="editor" placeholder="每行輸入一個節點鏈接或訂閱鏈接...&#10;例如:&#10;vless://...&#10;https://.../sub" spellcheck="false"></textarea>
-                <div class="flex justify-between items-center mt-4">
-                    <span class="text-xs mono" id="saveStatus" style="color: var(--text-dim);">就緒</span>
-                    <button class="btn btn-primary" id="saveBtn" onclick="saveContent(this)">保存</button>
-                </div>
+            <div class="mono text-xs text-blue-500 bg-blue-500/10 px-3 py-1 rounded-md border border-blue-500/20 hidden sm:block">Secured</div>
+        </div>
+        
+        ${hasKV ? `
+        <div id="lock-screen" class="flex flex-col items-center justify-center py-10">
+            <div class="text-5xl mb-4 opacity-80">🔒</div>
+            <p class="text-sm mb-6" style="color: var(--text-dim);">訪問受限，請驗證系統管理員金鑰</p>
+            <div class="flex justify-center gap-3">
+                <input type="password" id="adminPwd" class="pwd-input mono" placeholder="KEY..." onkeypress="if(event.keyCode==13) unlockEditor()">
+                <button class="btn btn-primary" onclick="unlockEditor()">解鎖</button>
             </div>
-            ` : '<p class="text-red-400 text-center text-sm">⚠️ 未綁定 KV 命名空間，無法保存配置。</p>'}
+            <p id="lockError" class="text-sm mt-4 text-red-500 hidden font-bold">❌ 權限拒絕，金鑰無效</p>
         </div>
 
-        <div class="glass-card">
-            <h2 class="card-title">
-                <span>🔗 獲取訂閱 Get Sub</span>
-            </h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div id="editor-screen" style="display:none;">
+            <textarea id="content" class="editor" placeholder="每行輸入一個節點鏈接或訂閱鏈接...&#10;例如:&#10;vless://...&#10;https://.../sub" spellcheck="false"></textarea>
+            <div class="flex justify-between items-center mt-4">
+                <span class="text-xs mono font-bold uppercase" id="saveStatus" style="color: var(--text-dim);">Ready</span>
+                <button class="btn btn-primary" id="saveBtn" onclick="saveContent(this)">💾 寫入雲端配置</button>
+            </div>
+        </div>
+        ` : '<p class="text-red-500 text-center text-sm font-bold bg-red-500/10 py-4 rounded-xl border border-red-500/20">⚠️ 嚴重警告：系統未綁定名稱為 KV 的命名空間！</p>'}
+    </div>
+
+    <div class="bento-box">
+        <div class="flex justify-between items-start mb-8">
+            <div>
+                <h2 class="text-2xl font-bold">🔗 獲取訂閱 Get Sub</h2>
+                <p class="text-sm mt-1" style="color: var(--text-dim);">全球網絡下發接口，請將適配鏈接導入客戶端。</p>
+            </div>
+            <div class="mono text-xs text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-md border border-emerald-500/20 hidden sm:block">Active</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            ${subLinks.map((item) => `
+            <div class="bento-box-small">
+                <div class="sub-title">${item.name}</div>
+                <div class="sub-link">https://${url.hostname}/${mytoken}${item.path}</div>
+                <div class="flex gap-2 justify-center">
+                    <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/${mytoken}${item.path}')">複製</button>
+                    <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/${mytoken}${item.path}')">掃碼</button>
+                </div>
+            </div>
+            `).join('')}
+        </div>
+
+        <div class="toggle-guest" onclick="toggleGuest()">[ 展開訪客安全隔離通道 ]</div>
+        
+        <div id="guestSection" class="guest-section">
+            <h2 class="text-lg font-bold mb-2">👤 訪客專用 Guest Sub</h2>
+            <p style="font-size:12px; margin-bottom:24px;" style="color: var(--text-dim);">
+                訪客專用 API 僅具備節點拉取權限，不具備編輯權限。安全憑證: <code class="mono px-2 py-1 rounded bg-black/10 dark:bg-white/10 text-xs">${guest}</code>
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 ${subLinks.map((item) => `
-                <div class="sub-card">
-                    <div class="sub-title" style="background-color: ${item.color}">${item.name}</div>
-                    <div class="sub-link">https://${url.hostname}/${mytoken}${item.path}</div>
+                <div class="bento-box-small">
+                    <div class="sub-title" style="background-color: var(--text-dim);">${item.name}</div>
+                    <div class="sub-link">https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}</div>
                     <div class="flex gap-2 justify-center">
-                        <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/${mytoken}${item.path}')">複製</button>
-                        <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/${mytoken}${item.path}')">掃碼</button>
+                        <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">複製</button>
+                        <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">掃碼</button>
                     </div>
                 </div>
                 `).join('')}
             </div>
-
-            <div class="toggle-guest" onclick="toggleGuest()">展開訪客專用節點</div>
-            
-            <div id="guestSection" class="guest-section">
-                <h2 class="card-title" style="border-bottom:none; margin-bottom:5px;">👤 訪客專用 Guest Sub</h2>
-                <p style="font-size:12px; margin-bottom:20px; color: var(--text-dim);">
-                    專用 Token: <code class="mono px-2 py-1 rounded bg-black/20 dark:bg-white/10 text-xs">${guest}</code>
-                </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    ${subLinks.map((item) => `
-                    <div class="sub-card">
-                        <div class="sub-title" style="background-color: ${item.color}">${item.name}</div>
-                        <div class="sub-link">https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}</div>
-                        <div class="flex gap-2 justify-center">
-                            <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">複製</button>
-                            <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">掃碼</button>
-                        </div>
-                    </div>
-                    `).join('')}
-                </div>
-            </div>
         </div>
     </div>
 
-    <div class="text-center mt-12 mb-4 space-y-2 text-sm">
-        <p style="color: var(--text-dim);">
+    <div class="text-center mt-8 space-y-3">
+        <p class="text-xs mono tracking-widest uppercase" style="color: var(--text-dim);">
             ⚡️ Powered by <a href="https://btycloud.top" target="_blank" class="font-bold text-blue-500 hover:text-blue-400 transition-colors">BTYCloud 八通雲計算服務</a>
         </p>
-        <p class="text-xs" style="color: var(--text-dim);">
+        <p class="text-[10px] text-gray-500">
             A Strategic Infrastructure Division of <a href="https://runsinggroup.com" target="_blank" class="font-bold hover:text-gray-300 transition-colors">潤昇創新 (RunSing Innovation)</a>
         </p>
     </div>
 </div>
 
 <script>
-    // 主題切換
+    // -------------------------------------------------------------
+    // 日夜模式切換邏輯
+    // -------------------------------------------------------------
     const themeIcon = document.getElementById('themeIcon');
+    
     function initTheme() {
         const savedTheme = localStorage.getItem('bty-theme');
         if (savedTheme === 'light') {
@@ -650,17 +655,18 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             themeIcon.textContent = '🌙';
         }
     }
+    
     function toggleTheme() {
         document.documentElement.classList.toggle('light-theme');
         const isLight = document.documentElement.classList.contains('light-theme');
         localStorage.setItem('bty-theme', isLight ? 'light' : 'dark');
         themeIcon.textContent = isLight ? '☀️' : '🌙';
     }
-    initTheme();
+    
+    initTheme(); 
 
     let sessionPwd = ""; 
 
-    // Toast
     function showToast(msg) {
         const toast = document.getElementById('toast');
         toast.textContent = msg;
@@ -668,39 +674,42 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
         setTimeout(() => toast.classList.remove('toast-show'), 2500);
     }
 
-    // 複製
     function copyText(text) {
         navigator.clipboard.writeText(text).then(() => {
-            showToast('✅ 已複製到剪貼板');
+            showToast('✅ 鏈接已安全複製');
         }).catch(err => {
             alert('複製失敗，請手動複製');
         });
     }
 
-    // 二維碼 (改用穩定的外部 API 渲染圖片)
+    // 二維碼 (改用外部 API 渲染圖片，徹底修復 Canvas Bug)
     function showQR(text) {
         document.getElementById('qrModal').style.display = 'flex';
         const qrContainer = document.getElementById('qrcode_canvas');
-        // 直接使用 API 生成圖片，徹底解決 Canvas 渲染報錯的問題
-        qrContainer.innerHTML = \`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(text)}&margin=10" alt="QR Code" style="border-radius: 12px; width: 200px; height: 200px;">\`;
+        qrContainer.innerHTML = \`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(text)}&margin=10" alt="QR Code" style="border-radius: 12px; width: 180px; height: 180px;">\`;
     }
 
     function closeModal() {
         document.getElementById('qrModal').style.display = 'none';
-        document.getElementById('qrcode_canvas').innerHTML = ''; // 關閉時清空
+        document.getElementById('qrcode_canvas').innerHTML = ''; 
     }
     window.onclick = function(event) {
         const modal = document.getElementById('qrModal');
         if (event.target == modal) closeModal();
     }
 
-    // 訪客區
     function toggleGuest() {
         const el = document.getElementById('guestSection');
-        el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        if (el.style.display === 'block') {
+            el.style.display = 'none';
+        } else {
+            el.style.display = 'block';
+        }
     }
 
-    // 安全與保存
+    // ==========================================
+    // 安全邏輯：解鎖與保存
+    // ==========================================
     if (document.querySelector('#lock-screen')) {
         let timer;
         const textarea = document.getElementById('content');
@@ -726,14 +735,14 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
                     sessionPwd = pwd; 
                     document.getElementById('lock-screen').style.display = 'none';
                     document.getElementById('editor-screen').style.display = 'block';
-                    showToast('🔓 已解鎖');
+                    showToast('🔓 BTYCloud 終端已解鎖');
                 } else {
                     document.getElementById('lockError').style.display = 'block';
                     pwdInput.disabled = false;
                     pwdInput.value = '';
                 }
             } catch(e) {
-                document.getElementById('lockError').textContent = '❌ 網絡錯誤';
+                document.getElementById('lockError').textContent = '❌ 網絡層異常，連接中斷';
                 document.getElementById('lockError').style.display = 'block';
                 pwdInput.disabled = false;
             }
@@ -747,9 +756,9 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             }
             const newContent = textarea.value;
             
-            buttonElement.textContent = '保存中...';
+            buttonElement.textContent = 'EXECUTING...';
             buttonElement.disabled = true;
-            status.textContent = '正在寫入...';
+            status.textContent = 'SYNCING_WITH_BTYCLOUD_EDGE...';
 
             fetch(window.location.href, {
                 method: 'POST',
@@ -759,25 +768,29 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
             })
             .then(response => {
                 if (!response.ok) throw new Error('HTTP ' + response.status);
-                status.textContent = '✅ 已保存 (' + new Date().toLocaleTimeString() + ')';
-                buttonElement.textContent = '已保存';
-                showToast('✅ 配置已更新');
+                const time = new Date().toLocaleTimeString();
+                status.textContent = 'SYNC_COMPLETE_[' + time + ']';
+                buttonElement.style.backgroundColor = 'var(--success, #10b981)';
+                buttonElement.textContent = '配置已更新';
+                showToast('✅ 路由拓撲已寫入邊緣節點');
             })
             .catch(error => {
-                status.textContent = '❌ 失敗: ' + error.message;
-                buttonElement.textContent = '重試';
-                showToast('❌ 保存失敗');
+                status.textContent = 'SYNC_FAILED: ' + error.message;
+                buttonElement.style.backgroundColor = '#e11d48';
+                buttonElement.textContent = '重試寫入';
+                showToast('❌ 同步失敗，請檢查鏈路狀態');
             })
             .finally(() => {
                 setTimeout(() => {
-                    buttonElement.textContent = '保存';
+                    buttonElement.style.backgroundColor = 'var(--accent)';
+                    buttonElement.textContent = '💾 寫入雲端配置';
                     buttonElement.disabled = false;
                 }, 2000);
             });
         }
 
         textarea.addEventListener('input', () => {
-            status.textContent = '等待保存...';
+            status.textContent = 'AWAITING_SYNC_CONFIRMATION...';
             clearTimeout(timer);
             timer = setTimeout(() => saveContent(btn), 3000); 
         });
