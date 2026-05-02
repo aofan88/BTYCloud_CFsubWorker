@@ -401,7 +401,7 @@ async function 遷移地址列表(env, txt = 'ADD.txt') {
 }
 
 // -------------------------------------------------------------
-// 🔥 全新重構的 BTYCloud 定製 UI 介面 (V5.0 Ultra)
+// 🔥 全新重構的 BTYCloud 定製 UI 介面 (V5.1 Ultra)
 // -------------------------------------------------------------
 async function KV(request, env, txt = 'ADD.txt', guest) {
 	const url = new URL(request.url);
@@ -551,8 +551,12 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
 
 <div class="max-w-4xl mx-auto px-6 pb-12">
     <header class="flex justify-between items-center py-10">
-        <div class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-cyan-400 tracking-tight cursor-pointer">
-            BTYCloud
+        <div class="flex items-center gap-3">
+            <div class="text-2xl font-black tracking-tight cursor-pointer">
+                <span style="color: #3b82f6;">BTY</span><span style="color: var(--text-main);">Cloud</span>
+            </div>
+            <div style="height: 18px; width: 1px; background-color: var(--glass-border);"></div>
+            <div class="text-sm font-medium tracking-widest" style="color: var(--text-dim);">八通雲計算服務</div>
         </div>
         <button class="theme-switch text-xl" onclick="toggleTheme()" id="themeIcon">🌙</button>
     </header>
@@ -673,23 +677,17 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
         });
     }
 
-    // 二維碼
-    let qrObj = null;
+    // 二維碼 (改用穩定的外部 API 渲染圖片)
     function showQR(text) {
         document.getElementById('qrModal').style.display = 'flex';
         const qrContainer = document.getElementById('qrcode_canvas');
-        qrContainer.innerHTML = '';
-        qrObj = new QRCode(qrContainer, {
-            text: text,
-            width: 180,
-            height: 180,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.M
-        });
+        // 直接使用 API 生成圖片，徹底解決 Canvas 渲染報錯的問題
+        qrContainer.innerHTML = \`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=\${encodeURIComponent(text)}&margin=10" alt="QR Code" style="border-radius: 12px; width: 200px; height: 200px;">\`;
     }
+
     function closeModal() {
         document.getElementById('qrModal').style.display = 'none';
+        document.getElementById('qrcode_canvas').innerHTML = ''; // 關閉時清空
     }
     window.onclick = function(event) {
         const modal = document.getElementById('qrModal');
