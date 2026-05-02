@@ -516,48 +516,48 @@ async function KV(request, env, txt = 'ADD.txt', guest) {
 
     <div class="card">
         <h2 class="card-title">📝 节点与订阅汇聚源</h2>
-        ${hasKV ? \`
+        ${hasKV ? `
         <div class="editor-wrapper">
-            <textarea id="content" class="editor" placeholder="每行输入一个节点链接或订阅链接...\\n例如:\\nvless://...\\nhttps://.../sub" spellcheck="false">\${content}</textarea>
+            <textarea id="content" class="editor" placeholder="每行输入一个节点链接或订阅链接...&#10;例如:&#10;vless://...&#10;https://.../sub" spellcheck="false">${content}</textarea>
         </div>
         <div class="action-bar">
             <span class="status-text" id="saveStatus">就绪</span>
             <button class="btn btn-primary" id="saveBtn" onclick="saveContent(this)">💾 保存配置</button>
         </div>
-        \` : '<p style="color:red; text-align:center;">⚠️ 请先绑定名称为 <strong>KV</strong> 的命名空间</p>'}
+        ` : '<p style="color:red; text-align:center;">⚠️ 请先绑定名称为 <strong>KV</strong> 的命名空间</p>'}
     </div>
 
     <div class="card">
         <h2 class="card-title">🔗 主订阅地址 (管理員)</h2>
         <div class="grid">
-            ${subLinks.map((item, index) => \`
+            ${subLinks.map((item, index) => `
             <div class="sub-card">
-                <div class="sub-title" style="background-color: \${item.color}">\${item.name}</div>
-                <div class="sub-link">https://\${url.hostname}/\${mytoken}\${item.path}</div>
+                <div class="sub-title" style="background-color: ${item.color}">${item.name}</div>
+                <div class="sub-link">https://${url.hostname}/${mytoken}${item.path}</div>
                 <div class="sub-actions">
-                    <button class="btn btn-outline" onclick="copyText('https://\${url.hostname}/\${mytoken}\${item.path}')">复制链接</button>
-                    <button class="btn btn-outline" onclick="showQR('https://\${url.hostname}/\${mytoken}\${item.path}')">二维码</button>
+                    <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/${mytoken}${item.path}')">复制链接</button>
+                    <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/${mytoken}${item.path}')">二维码</button>
                 </div>
             </div>
-            \`).join('')}
+            `).join('')}
         </div>
 
         <div class="toggle-guest" onclick="toggleGuest()">[ 查看访客专用订阅配置 ]</div>
         
         <div id="guestSection" class="guest-section">
             <h2 class="card-title" style="border-bottom:none; margin-bottom:5px;">👤 访客专用地址</h2>
-            <p style="font-size:13px; color:#888; margin-bottom:15px;">访客仅能获取订阅节点，无法进入此控制台。Token: <code style="background:#eee;padding:2px 4px;border-radius:4px;">\${guest}</code></p>
+            <p style="font-size:13px; color:#888; margin-bottom:15px;">访客仅能获取订阅节点，无法进入此控制台。Token: <code style="background:#eee;padding:2px 4px;border-radius:4px;">${guest}</code></p>
             <div class="grid">
-                ${subLinks.map((item, index) => \`
+                ${subLinks.map((item, index) => `
                 <div class="sub-card">
-                    <div class="sub-title" style="background-color: \${item.color}">\${item.name}</div>
-                    <div class="sub-link">https://\${url.hostname}/sub?token=\${guest}\${item.path.replace('?', '&')}</div>
+                    <div class="sub-title" style="background-color: ${item.color}">${item.name}</div>
+                    <div class="sub-link">https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}</div>
                     <div class="sub-actions">
-                        <button class="btn btn-outline" onclick="copyText('https://\${url.hostname}/sub?token=\${guest}\${item.path.replace('?', '&')}')">复制链接</button>
-                        <button class="btn btn-outline" onclick="showQR('https://\${url.hostname}/sub?token=\${guest}\${item.path.replace('?', '&')}')">二维码</button>
+                        <button class="btn btn-outline" onclick="copyText('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">复制链接</button>
+                        <button class="btn btn-outline" onclick="showQR('https://${url.hostname}/sub?token=${guest}${item.path.replace('?', '&')}')">二维码</button>
                     </div>
                 </div>
-                \`).join('')}
+                `).join('')}
             </div>
         </div>
     </div>
